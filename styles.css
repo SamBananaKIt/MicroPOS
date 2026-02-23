@@ -486,21 +486,29 @@ body {
 /* Sale count badge (shows after first sale) */
 .sale-count {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 22px;
-    height: 22px;
-    border-radius: 11px;
-    background: linear-gradient(135deg, var(--accent-orange), var(--accent-warm));
-    color: #07110b;
-    font-size: 10px;
+    top: -2px;
+    right: 2px;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1.5px solid var(--primary);
+    color: var(--primary);
+    font-size: 11px;
     font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 5px;
-    box-shadow: 0 2px 8px rgba(255, 122, 91, 0.4);
     z-index: 5;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.product-item.hot .sale-count {
+    background: var(--primary);
+    color: #07110b;
+    border-color: var(--primary-deep);
+    box-shadow: 0 0 10px var(--primary-glow);
 }
 
 /* Hot rank badge */

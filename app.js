@@ -226,8 +226,8 @@ function renderProductGrid() {
                 <div class="product-circle-wrap">
                     ${ringSVG}
                     <div class="product-circle">${circleInner}<div class="edit-overlay">✏️</div></div>
+                    ${saleBadge}
                 </div>
-                ${saleBadge}
                 <span class="product-label">${p.name}</span>
                 <span class="product-price-tag">฿${p.price}</span>
             `;
@@ -236,8 +236,8 @@ function renderProductGrid() {
                 <div class="product-circle-wrap">
                     ${ringSVG}
                     <div class="product-circle">${circleInner}</div>
+                    ${saleBadge}
                 </div>
-                ${saleBadge}
                 <span class="product-label">${p.name}</span>
                 <span class="product-price-tag">฿${p.price}</span>
             `;
