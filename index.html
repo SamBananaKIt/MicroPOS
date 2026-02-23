@@ -85,22 +85,68 @@
         <!-- Main Content Area -->
         <main class="flex-1 overflow-y-auto w-full px-4 py-6 pb-24 space-y-8 scroll-smooth">
 
-            <!-- Mission Card -->
-            <section
-                class="bg-white border text-center border-gray-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gray-100">
-                    <div id="mission-progress-bar" class="h-full bg-accent transition-all duration-700 ease-out w-0">
+            <!-- Analytics Carousel -->
+            <section class="bg-white border border-gray-100 rounded-2xl shadow-sm relative overflow-hidden">
+                <!-- Carousel Slides -->
+                <div class="carousel-container" id="analytics-carousel">
+                    <div class="carousel-track">
+
+                        <!-- Slide 1: Summary -->
+                        <div class="carousel-slide">
+                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">เป้าหมายวันนี้
+                            </h2>
+                            <div class="flex justify-center items-baseline gap-2 mb-2">
+                                <span id="mission-current"
+                                    class="text-4xl font-extrabold tracking-tighter text-primary">0</span>
+                                <span class="text-xl text-gray-400 font-medium">/</span>
+                                <span id="mission-target" class="text-xl text-gray-400 font-medium">0</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden mb-2">
+                                <div id="mission-progress-bar"
+                                    class="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                                    style="width:0%"></div>
+                            </div>
+                            <p id="mission-message"
+                                class="text-sm text-gray-600 min-h-[1.25rem] font-medium text-center animate-fade-in">
+                                เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪</p>
+                        </div>
+
+                        <!-- Slide 2: Product Pie Chart -->
+                        <div class="carousel-slide">
+                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">สัดส่วนยอดขาย
+                            </h2>
+                            <div class="chart-wrap">
+                                <canvas id="chart-pie"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Slide 3: Hourly Bar Chart -->
+                        <div class="carousel-slide">
+                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">ยอดขายรายชั่วโมง
+                            </h2>
+                            <div class="chart-wrap">
+                                <canvas id="chart-hourly"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Slide 4: Weekly Line Chart -->
+                        <div class="carousel-slide">
+                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">ย้อนหลัง 7 วัน
+                            </h2>
+                            <div class="chart-wrap">
+                                <canvas id="chart-weekly"></canvas>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
-                <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">เป้าหมายวันนี้</h2>
-                <div class="flex justify-center items-baseline gap-2 mb-2">
-                    <span id="mission-current"
-                        class="text-5xl font-extrabold tracking-tighter text-primary count-up">0</span>
-                    <span class="text-xl text-gray-400 font-medium">/</span>
-                    <span id="mission-target" class="text-xl text-gray-400 font-medium">0</span>
+                <!-- Dot Indicators -->
+                <div class="carousel-dots" id="carousel-dots">
+                    <div class="carousel-dot active" data-idx="0"></div>
+                    <div class="carousel-dot" data-idx="1"></div>
+                    <div class="carousel-dot" data-idx="2"></div>
+                    <div class="carousel-dot" data-idx="3"></div>
                 </div>
-                <p id="mission-message" class="text-sm text-gray-600 min-h-[1.25rem] font-medium animate-fade-in">
-                    เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪</p>
             </section>
 
             <!-- Products Section -->
@@ -137,6 +183,8 @@
     <!-- Modals to follow below in app.js injections or hidden divs -->
     <div id="modals-container"></div>
 
+    <!-- Chart.js (lightweight charting) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Confetti Library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <!-- App Logic -->
