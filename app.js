@@ -1,9 +1,9 @@
 /**
- * MicroPOS - Ultra-Fast Browser-Only SPA
- * Logic Layer, Storage, UI Binding, Analytics & Charts
+ * MicroPOS v2 — Ultra-Fast Offline POS
+ * Design System v2: Neon Dark + Edit Mode
  */
 
-// --- 1. CONFIG & CONSTANTS ---
+// --- 1. CONFIG ---
 const DB_NAME = 'micropos_db';
 const DB_VERSION = 1;
 
@@ -15,41 +15,34 @@ let profile = {
 };
 
 let dailyState = {
-    date: '',
-    total_qty: 0,
-    total_revenue: 0,
-    goal_value: 1000,
-    goal_progress: 0,
-    streak_count: 0
+    date: '', total_qty: 0, total_revenue: 0,
+    goal_value: 1000, goal_progress: 0, streak_count: 0
 };
 
 let products = [];
 let todayStr = '';
+let todaySalesByProduct = {};
+let chartPie = null, chartHourly = null, chartWeekly = null;
+let editMode = false;
 
-// Analytics state
-let todaySalesByProduct = {}; // { product_id: { count, revenue, name } }
-let chartPie = null;
-let chartHourly = null;
-let chartWeekly = null;
+// Emoji map for product avatars
+const PRODUCT_EMOJIS = ['🍉', '☕', '🧋', '🥤', '🍊', '🥐', '🍜', '🧁', '🍕', '🍔', '🍟', '🥗', '🍦', '🍪', '🍩'];
 
-const CHART_COLORS = [
-    '#7ED957', '#4ade80', '#3b82f6', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'
-];
+const CHART_COLORS = ['#14e08a', '#5ad1ff', '#ffd166', '#ff7a5b', '#a78bfa', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#ef4444'];
 
-// Chart.js dark theme defaults
+// Set Chart.js dark defaults
 if (typeof Chart !== 'undefined') {
-    Chart.defaults.color = 'rgba(255,255,255,0.45)';
-    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+    Chart.defaults.color = 'rgba(255,255,255,0.4)';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.04)';
 }
 
 const MOTIVATIONAL_MESSAGES = {
     0: ["เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪", "ออเดอร์แรกมาแล้ว! ลุยต่อเลย 🔥"],
-    10: ["จุดพลังกำลังเพิ่ม 📈", "ยอดเยี่ยมมาก ไปต่อเรื่อยๆ ✨"],
+    10: ["จุดพลังกำลังเพิ่ม 📈", "ยอดเยี่ยมมากค่ะ ✨"],
     25: ["ครึ่งทางแล้ว มั่นใจได้ 🌟", "มาดีมาก ทะลุเป้าแน่นอน 🚀"],
     50: ["ดีมาก! ต่อไปให้สุด 🎯", "เกินครึ่งทางแล้ว ลุยต่อนะคะ ⚡"],
     75: ["ใกล้แล้ว! เตรียมรับรางวัล 🏆", "อีกนิดเดียวเท่านั้น สู้ๆ! 🏃‍♂️"],
-    90: ["จะถึงเป้าแล้ว! หายใจลึกๆ 🧘‍♂️", "โอ้โห โคตรเก่งเลยเฮีย! 💖"],
+    90: ["จะถึงเป้าแล้ว! หายใจลึกๆ 🧘‍♂️", "โคตรเก่งเลยเฮีย! 💖"],
     100: ["สำเร็จ! เก่งมากค่ะ 🎉🎉", "เป้าแตกแล้วฉลองหน่อย! 🎊🎊"]
 };
 
@@ -75,7 +68,7 @@ async function initApp() {
         initCarousel();
         renderCharts();
     } catch (e) {
-        console.error("Initialization error:", e);
+        console.error("Init error:", e);
         showToast("เกิดข้อผิดพลาดในการโหลดระบบ", "error");
     }
 }
@@ -88,26 +81,20 @@ function generateId() {
     return crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + Math.random().toString(36).substr(2, 9);
 }
 
-// --- 3. DATABASE WRAPPER ---
+// --- 3. DATABASE ---
 function initDB() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, DB_VERSION);
         req.onupgradeneeded = e => {
             const dbRef = e.target.result;
-            if (!dbRef.objectStoreNames.contains('products')) {
-                dbRef.createObjectStore('products', { keyPath: 'product_id' });
-            }
+            if (!dbRef.objectStoreNames.contains('products')) dbRef.createObjectStore('products', { keyPath: 'product_id' });
             if (!dbRef.objectStoreNames.contains('transactions')) {
                 const txStore = dbRef.createObjectStore('transactions', { keyPath: 'tx_id' });
                 txStore.createIndex('timestamp', 'timestamp', { unique: false });
                 txStore.createIndex('date', 'date', { unique: false });
             }
-            if (!dbRef.objectStoreNames.contains('dailyRecords')) {
-                dbRef.createObjectStore('dailyRecords', { keyPath: 'date' });
-            }
-            if (!dbRef.objectStoreNames.contains('profile')) {
-                dbRef.createObjectStore('profile', { keyPath: 'id' });
-            }
+            if (!dbRef.objectStoreNames.contains('dailyRecords')) dbRef.createObjectStore('dailyRecords', { keyPath: 'date' });
+            if (!dbRef.objectStoreNames.contains('profile')) dbRef.createObjectStore('profile', { keyPath: 'id' });
         };
         req.onsuccess = e => { db = e.target.result; resolve(); };
         req.onerror = e => reject(e.target.error);
@@ -119,11 +106,7 @@ function idbOp(storeName, mode, op) {
         const tx = db.transaction(storeName, mode);
         const store = tx.objectStore(storeName);
         let req;
-        try {
-            req = op(store);
-        } catch (err) {
-            return reject(err);
-        }
+        try { req = op(store); } catch (err) { return reject(err); }
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
     });
@@ -132,18 +115,13 @@ function idbOp(storeName, mode, op) {
 // --- 4. BUSINESS LOGIC ---
 async function loadProfile() {
     const prof = await idbOp('profile', 'readonly', s => s.get('default_user'));
-    if (prof) {
-        profile = prof;
-    } else {
-        await idbOp('profile', 'readwrite', s => s.put(profile));
-    }
+    if (prof) profile = prof;
+    else await idbOp('profile', 'readwrite', s => s.put(profile));
 }
 
 async function initDailyState() {
     const cached = localStorage.getItem(`dailyState_${todayStr}`);
-    if (cached) {
-        dailyState = JSON.parse(cached);
-    }
+    if (cached) dailyState = JSON.parse(cached);
 
     const record = await idbOp('dailyRecords', 'readonly', s => s.get(todayStr));
     if (record) {
@@ -152,41 +130,23 @@ async function initDailyState() {
         const prevRecords = await idbOp('dailyRecords', 'readonly', s => s.getAll());
         prevRecords.sort((a, b) => a.date > b.date ? -1 : 1);
 
-        let streak = 0;
-        let avgBase = 0;
+        let streak = 0, avgBase = 0;
         if (prevRecords.length > 0) {
             const last = prevRecords[0];
-            if (last.goal_progress >= last.goal_value) streak = last.streak_count + 1;
-            else streak = 0;
-
+            streak = last.goal_progress >= last.goal_value ? last.streak_count + 1 : 0;
             const sample = prevRecords.slice(0, 7);
-            const sum = sample.reduce((acc, val) => acc + (profile.settings.daily_goal_mode === 'revenue' ? val.total_revenue : val.total_qty), 0);
-            avgBase = sum / sample.length;
+            avgBase = sample.reduce((acc, val) => acc + (profile.settings.daily_goal_mode === 'revenue' ? val.total_revenue : val.total_qty), 0) / sample.length;
         }
-
         if (avgBase < 100) avgBase = 500;
+        const newGoal = Math.max(10, Math.round(avgBase * (0.85 + Math.random() * 0.3)));
 
-        const factor = 0.85 + (Math.random() * 0.3);
-        const newGoal = Math.max(10, Math.round(avgBase * factor));
-
-        dailyState = {
-            date: todayStr,
-            total_qty: 0,
-            total_revenue: 0,
-            total_cost: 0,
-            total_profit: 0,
-            goal_value: newGoal,
-            goal_progress: 0,
-            streak_count: streak
-        };
+        dailyState = { date: todayStr, total_qty: 0, total_revenue: 0, total_cost: 0, total_profit: 0, goal_value: newGoal, goal_progress: 0, streak_count: streak };
         await idbOp('dailyRecords', 'readwrite', s => s.put(dailyState));
     }
     syncLocalCache();
 }
 
-function syncLocalCache() {
-    localStorage.setItem(`dailyState_${todayStr}`, JSON.stringify(dailyState));
-}
+function syncLocalCache() { localStorage.setItem(`dailyState_${todayStr}`, JSON.stringify(dailyState)); }
 
 async function loadProducts() {
     products = await idbOp('products', 'readonly', s => s.getAll());
@@ -195,78 +155,57 @@ async function loadProducts() {
 
 async function createDummyProducts() {
     const dummies = [
-        { product_id: generateId(), name: 'น้ำแตงโมปั่น', price: 45, cost: 20, is_active: true },
-        { product_id: generateId(), name: 'กาแฟเย็น', price: 50, cost: 25, is_active: true },
-        { product_id: generateId(), name: 'ชานมไข่มุก', price: 40, cost: 18, is_active: true }
+        { product_id: generateId(), name: 'น้ำแตงโมปั่น', price: 45, cost: 20, emoji: '🍉', is_active: true },
+        { product_id: generateId(), name: 'กาแฟเย็น', price: 50, cost: 25, emoji: '☕', is_active: true },
+        { product_id: generateId(), name: 'ชานมไข่มุก', price: 40, cost: 18, emoji: '🧋', is_active: true }
     ];
-    for (let p of dummies) {
-        await idbOp('products', 'readwrite', s => s.put(p));
-    }
+    for (let p of dummies) await idbOp('products', 'readwrite', s => s.put(p));
 }
 
-// Load today's sales data for popularity & charts
 async function loadTodaySalesData() {
     todaySalesByProduct = {};
     try {
         const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
-        const todayTx = allTx.filter(t => t.date === todayStr);
-        todayTx.forEach(t => {
+        allTx.filter(t => t.date === todayStr).forEach(t => {
             if (!todaySalesByProduct[t.product_id]) {
                 const prod = products.find(p => p.product_id === t.product_id);
-                todaySalesByProduct[t.product_id] = {
-                    count: 0,
-                    revenue: 0,
-                    name: prod ? prod.name : 'ไม่ทราบ'
-                };
+                todaySalesByProduct[t.product_id] = { count: 0, revenue: 0, name: prod ? prod.name : '?' };
             }
             todaySalesByProduct[t.product_id].count += t.quantity;
             todaySalesByProduct[t.product_id].revenue += t.total_revenue;
         });
-    } catch (e) {
-        console.error("Failed to load sales data", e);
-    }
+    } catch (e) { console.error("Failed to load sales:", e); }
 }
 
-// Main Sale Action (< 3s rule)
+// --- SELL ---
 async function sellProduct(productId, btnEl) {
     const prod = products.find(p => p.product_id === productId);
     if (!prod) return;
 
     const tx = {
-        tx_id: generateId(),
-        product_id: prod.product_id,
-        quantity: 1,
-        unit_price: Number(prod.price),
-        unit_cost: Number(prod.cost),
-        total_revenue: Number(prod.price),
-        total_cost: Number(prod.cost),
+        tx_id: generateId(), product_id: prod.product_id, quantity: 1,
+        unit_price: Number(prod.price), unit_cost: Number(prod.cost),
+        total_revenue: Number(prod.price), total_cost: Number(prod.cost),
         profit: Number(prod.price) - Number(prod.cost),
-        timestamp: new Date().toISOString(),
-        date: todayStr
+        timestamp: new Date().toISOString(), date: todayStr
     };
 
-    // Memory Update
     dailyState.total_qty += 1;
     dailyState.total_revenue += tx.total_revenue;
     dailyState.total_cost += tx.total_cost;
     dailyState.total_profit += tx.profit;
     dailyState.goal_progress = profile.settings.daily_goal_mode === 'revenue' ? dailyState.total_revenue : dailyState.total_qty;
 
-    // Track per-product sales
-    if (!todaySalesByProduct[productId]) {
-        todaySalesByProduct[productId] = { count: 0, revenue: 0, name: prod.name };
-    }
+    if (!todaySalesByProduct[productId]) todaySalesByProduct[productId] = { count: 0, revenue: 0, name: prod.name };
     todaySalesByProduct[productId].count += 1;
     todaySalesByProduct[productId].revenue += tx.total_revenue;
 
-    // UI Optimistic Render & Effects
     updateKPIs();
     updateMissionUI();
     playMicroAnimations(btnEl);
     applyPopularityScaling();
     updateChartsOnSale(tx);
 
-    // Background DB Persist
     syncLocalCache();
     try {
         const idbTx = db.transaction(['transactions', 'dailyRecords'], 'readwrite');
@@ -274,38 +213,51 @@ async function sellProduct(productId, btnEl) {
         idbTx.objectStore('dailyRecords').put(dailyState);
     } catch (e) {
         console.error("DB write failed", e);
-        showToast("บันทึกลงฐานข้อมูลไม่สำเร็จ", "error");
+        showToast("บันทึกล้มเหลว", "error");
     }
 }
 
-// --- 5. UI & EFFECTS ---
+// --- 5. UI RENDERING ---
 function renderUI() {
     document.getElementById('shop-name-display').textContent = profile.shop_name;
+    renderProductGrid();
+    updateKPIs(false);
+    updateMissionUI(false);
+    applyPopularityScaling();
+}
 
+function renderProductGrid() {
     const grid = document.getElementById('product-grid');
     grid.innerHTML = '';
 
-    products.forEach(p => {
+    products.forEach((p, i) => {
+        const emoji = p.emoji || PRODUCT_EMOJIS[i % PRODUCT_EMOJIS.length];
         const div = document.createElement('div');
         div.className = 'product-card';
         div.dataset.productId = p.product_id;
 
-        div.innerHTML = `
-            <div style="flex:1">
+        if (editMode) {
+            div.innerHTML = `
+                <div class="product-avatar">${emoji}</div>
                 <p class="product-name">${p.name}</p>
                 <p class="product-price">฿${p.price}</p>
-            </div>
-            <button class="sell-btn" data-id="${p.product_id}">
-                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
-                ขาย
-            </button>
-        `;
+                <button class="edit-btn" data-id="${p.product_id}">✏️ แก้ไข</button>
+            `;
+        } else {
+            div.innerHTML = `
+                <div class="product-avatar">${emoji}</div>
+                <p class="product-name">${p.name}</p>
+                <p class="product-price">฿${p.price}</p>
+                <button class="sell-btn" data-id="${p.product_id}">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                    ขาย
+                </button>
+            `;
+        }
+
+        div.classList.add('pop');
         grid.appendChild(div);
     });
-
-    updateKPIs(false);
-    updateMissionUI(false);
-    applyPopularityScaling();
 }
 
 function updateKPIs(animate = true) {
@@ -314,8 +266,8 @@ function updateKPIs(animate = true) {
     const streakEl = document.getElementById('kpi-streak');
 
     if (animate) {
-        animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 400);
-        qtyEl.innerText = dailyState.total_qty.toLocaleString();
+        animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 500);
+        animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '')), dailyState.total_qty, 300);
     } else {
         revEl.innerText = dailyState.total_revenue.toLocaleString();
         qtyEl.innerText = dailyState.total_qty.toLocaleString();
@@ -324,7 +276,7 @@ function updateKPIs(animate = true) {
 }
 
 let lastThreshold = -1;
-function updateMissionUI(animate = true) {
+function updateMissionUI() {
     const curEl = document.getElementById('mission-current');
     const targetEl = document.getElementById('mission-target');
     const progressBar = document.getElementById('mission-progress-bar');
@@ -335,7 +287,6 @@ function updateMissionUI(animate = true) {
     let pct = Math.min((dailyState.goal_progress / dailyState.goal_value) * 100, 100);
     if (progressBar) progressBar.style.width = `${pct}%`;
 
-    // Motivation Check
     const thresholds = [0, 10, 25, 50, 75, 90, 100].reverse();
     const hit = thresholds.find(t => pct >= t);
 
@@ -343,7 +294,6 @@ function updateMissionUI(animate = true) {
         lastThreshold = hit;
         const msgs = MOTIVATIONAL_MESSAGES[hit];
         const msg = msgs[Math.floor(Math.random() * msgs.length)];
-
         const msgEl = document.getElementById('mission-message');
         if (msgEl) {
             msgEl.innerText = msg;
@@ -351,44 +301,31 @@ function updateMissionUI(animate = true) {
             void msgEl.offsetWidth;
             msgEl.classList.add('animate-fade-in');
         }
-
-        if (hit === 100 && animate) {
-            triggerConfetti();
-        }
+        if (hit === 100) triggerConfetti();
     }
 }
 
-// --- 6. DYNAMIC POPULARITY SCALING ---
+// --- 6. POPULARITY SCALING ---
 function applyPopularityScaling() {
+    if (editMode) return;
     const cards = document.querySelectorAll('.product-card');
     if (cards.length === 0) return;
 
-    // Get sales counts
-    const salesCounts = products.map(p => {
-        const data = todaySalesByProduct[p.product_id];
-        return data ? data.count : 0;
-    });
-    const maxSales = Math.max(...salesCounts, 1); // prevent /0
+    const salesCounts = products.map(p => (todaySalesByProduct[p.product_id]?.count) || 0);
+    const maxSales = Math.max(...salesCounts, 1);
 
-    // Find top seller
-    let topIdx = 0;
-    let topCount = 0;
-    salesCounts.forEach((c, i) => {
-        if (c > topCount) { topCount = c; topIdx = i; }
-    });
+    let topIdx = 0, topCount = 0;
+    salesCounts.forEach((c, i) => { if (c > topCount) { topCount = c; topIdx = i; } });
 
     cards.forEach((card, i) => {
         const count = salesCounts[i] || 0;
-        const scale = 1 + (count / maxSales) * 0.15; // Range 1.0 — 1.15
-
+        const scale = 1 + (count / maxSales) * 0.12;
         card.style.transform = `scale(${scale})`;
 
-        // Remove old badge
         const oldBadge = card.querySelector('.hot-badge');
         if (oldBadge) oldBadge.remove();
         card.classList.remove('hot-product');
 
-        // Add badge to top seller (only if they have > 0 sales)
         if (i === topIdx && topCount > 0) {
             card.classList.add('hot-product');
             const badge = document.createElement('span');
@@ -399,180 +336,111 @@ function applyPopularityScaling() {
     });
 }
 
-// --- 7. ANALYTICS CAROUSEL ---
+// --- 7. CAROUSEL ---
 function initCarousel() {
     const container = document.getElementById('analytics-carousel');
     const dots = document.querySelectorAll('.carousel-dot');
-    if (!container || dots.length === 0) return;
+    if (!container || !dots.length) return;
 
-    // Update dots on scroll
     container.addEventListener('scroll', () => {
-        const scrollLeft = container.scrollLeft;
-        const slideWidth = container.clientWidth;
-        const activeIdx = Math.round(scrollLeft / slideWidth);
-        dots.forEach((dot, i) => {
-            dot.classList.toggle('active', i === activeIdx);
-        });
+        const idx = Math.round(container.scrollLeft / container.clientWidth);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
     });
 
-    // Click dots to navigate
     dots.forEach(dot => {
         dot.addEventListener('click', () => {
-            const idx = parseInt(dot.dataset.idx);
-            container.scrollTo({ left: idx * container.clientWidth, behavior: 'smooth' });
+            container.scrollTo({ left: parseInt(dot.dataset.idx) * container.clientWidth, behavior: 'smooth' });
         });
     });
 }
 
-// --- 8. CHART RENDERING ---
+// --- 8. CHARTS ---
 async function renderCharts() {
-    if (typeof Chart === 'undefined') {
-        console.warn("Chart.js not loaded yet, skipping charts.");
-        return;
-    }
-
+    if (typeof Chart === 'undefined') return;
     const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
     const todayTx = allTx.filter(t => t.date === todayStr);
-
     renderPieChart(todayTx);
     renderHourlyChart(todayTx);
     renderWeeklyChart(allTx);
 }
 
 function renderPieChart(todayTx) {
-    const productRevenue = {};
+    const rev = {};
     todayTx.forEach(t => {
-        const prod = products.find(p => p.product_id === t.product_id);
-        const name = prod ? prod.name : 'อื่นๆ';
-        productRevenue[name] = (productRevenue[name] || 0) + t.total_revenue;
+        const p = products.find(x => x.product_id === t.product_id);
+        const n = p ? p.name : 'อื่นๆ';
+        rev[n] = (rev[n] || 0) + t.total_revenue;
     });
 
-    const labels = Object.keys(productRevenue);
-    const data = Object.values(productRevenue);
-
+    const labels = Object.keys(rev), data = Object.values(rev);
     const ctx = document.getElementById('chart-pie');
     if (!ctx) return;
-
     if (chartPie) chartPie.destroy();
 
     chartPie = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: labels.length > 0 ? labels : ['ยังไม่มียอด'],
+            labels: labels.length ? labels : ['ยังไม่มียอด'],
             datasets: [{
-                data: data.length > 0 ? data : [1],
-                backgroundColor: data.length > 0 ? CHART_COLORS.slice(0, labels.length) : ['#e5e7eb'],
-                borderWidth: 0,
-                borderRadius: 4
+                data: data.length ? data : [1],
+                backgroundColor: data.length ? CHART_COLORS.slice(0, labels.length) : ['rgba(255,255,255,0.06)'],
+                borderWidth: 0, borderRadius: 4
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '60%',
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        boxWidth: 10,
-                        padding: 8,
-                        font: { size: 11, family: 'Inter' }
-                    }
-                }
-            }
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: { legend: { position: 'right', labels: { boxWidth: 8, padding: 8, font: { size: 10, family: 'Inter' } } } }
         }
     });
 }
 
 function renderHourlyChart(todayTx) {
-    // Group by hour
     const hourly = {};
-    for (let h = 6; h <= 23; h++) {
-        hourly[h] = 0;
-    }
-    todayTx.forEach(t => {
-        const hour = new Date(t.timestamp).getHours();
-        if (hourly[hour] !== undefined) hourly[hour] += t.total_revenue;
-        else hourly[hour] = t.total_revenue;
-    });
-
-    const labels = Object.keys(hourly).map(h => `${h}:00`);
-    const data = Object.values(hourly);
+    for (let h = 6; h <= 23; h++) hourly[h] = 0;
+    todayTx.forEach(t => { const h = new Date(t.timestamp).getHours(); if (hourly[h] !== undefined) hourly[h] += t.total_revenue; });
 
     const ctx = document.getElementById('chart-hourly');
     if (!ctx) return;
-
     if (chartHourly) chartHourly.destroy();
-
-    // Dark theme grid color
-    const gridColor = 'rgba(255,255,255,0.04)';
 
     chartHourly = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels,
-            datasets: [{
-                data,
-                backgroundColor: 'rgba(126, 217, 87, 0.6)',
-                borderRadius: 6,
-                barThickness: 12
-            }]
+            labels: Object.keys(hourly).map(h => `${h}:00`),
+            datasets: [{ data: Object.values(hourly), backgroundColor: 'rgba(20, 224, 138, 0.45)', borderRadius: 6, barThickness: 10 }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { size: 9, family: 'Inter' }, maxRotation: 0 }
-                },
-                y: {
-                    grid: { color: 'rgba(255,255,255,0.04)' },
-                    ticks: { font: { size: 9, family: 'Inter' } },
-                    beginAtZero: true
-                }
+                x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } },
+                y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { font: { size: 8 } }, beginAtZero: true }
             },
-            plugins: {
-                legend: { display: false }
-            }
+            plugins: { legend: { display: false } }
         }
     });
 }
 
 function renderWeeklyChart(allTx) {
-    // Last 7 days
-    const days = [];
-    const revenues = [];
+    const days = [], revenues = [];
     for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
+        const d = new Date(); d.setDate(d.getDate() - i);
         const dateStr = d.toLocaleString("en-CA", { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' });
-        const dayName = d.toLocaleDateString('th-TH', { weekday: 'short', timeZone: "Asia/Bangkok" });
-        days.push(dayName);
-        const dayRevenue = allTx
-            .filter(t => t.date === dateStr)
-            .reduce((sum, t) => sum + t.total_revenue, 0);
-        revenues.push(dayRevenue);
+        days.push(d.toLocaleDateString('th-TH', { weekday: 'short', timeZone: "Asia/Bangkok" }));
+        revenues.push(allTx.filter(t => t.date === dateStr).reduce((s, t) => s + t.total_revenue, 0));
     }
 
-    // Growth calculation
-    const thisWeekTotal = revenues.reduce((a, b) => a + b, 0);
-    const lastWeekRevenues = [];
+    const thisW = revenues.reduce((a, b) => a + b, 0);
+    const lastWRevs = [];
     for (let i = 13; i >= 7; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleString("en-CA", { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' });
-        const dayRevenue = allTx
-            .filter(t => t.date === dateStr)
-            .reduce((sum, t) => sum + t.total_revenue, 0);
-        lastWeekRevenues.push(dayRevenue);
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const ds = d.toLocaleString("en-CA", { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' });
+        lastWRevs.push(allTx.filter(t => t.date === ds).reduce((s, t) => s + t.total_revenue, 0));
     }
-    const lastWeekTotal = lastWeekRevenues.reduce((a, b) => a + b, 0);
-    const growth = lastWeekTotal > 0 ? ((thisWeekTotal - lastWeekTotal) / lastWeekTotal * 100).toFixed(1) : 0;
+    const lastW = lastWRevs.reduce((a, b) => a + b, 0);
+    const growth = lastW > 0 ? ((thisW - lastW) / lastW * 100).toFixed(1) : 0;
 
     const ctx = document.getElementById('chart-weekly');
     if (!ctx) return;
-
     if (chartWeekly) chartWeekly.destroy();
 
     chartWeekly = new Chart(ctx, {
@@ -580,108 +448,126 @@ function renderWeeklyChart(allTx) {
         data: {
             labels: days,
             datasets: [{
-                data: revenues,
-                borderColor: '#7ED957',
-                backgroundColor: 'rgba(126, 217, 87, 0.1)',
-                fill: true,
-                tension: 0.4,
-                borderWidth: 3,
-                pointBackgroundColor: '#0f3d2e',
-                pointRadius: 4,
-                pointHoverRadius: 6
+                data: revenues, borderColor: '#14e08a', backgroundColor: 'rgba(20,224,138,0.08)',
+                fill: true, tension: 0.4, borderWidth: 2.5,
+                pointBackgroundColor: '#14e08a', pointRadius: 3, pointHoverRadius: 5
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { size: 10, family: 'Inter' } }
-                },
-                y: {
-                    grid: { color: 'rgba(255,255,255,0.04)' },
-                    ticks: { font: { size: 9, family: 'Inter' } },
-                    beginAtZero: true
-                }
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { font: { size: 8 } }, beginAtZero: true }
             },
             plugins: {
                 legend: { display: false },
                 title: {
-                    display: true,
-                    text: `Growth: ${growth > 0 ? '+' : ''}${growth}%`,
-                    font: { size: 11, weight: '600', family: 'Inter' },
-                    color: growth >= 0 ? '#16a34a' : '#ef4444',
-                    padding: { bottom: 4 }
+                    display: true, text: `Growth: ${growth > 0 ? '+' : ''}${growth}%`, font: { size: 11, weight: '700' },
+                    color: growth >= 0 ? '#14e08a' : '#ef4444', padding: { bottom: 4 }
                 }
             }
         }
     });
 }
 
-// Smoothly update charts after each sale
 function updateChartsOnSale(tx) {
-    // Update pie chart data
     if (chartPie) {
-        const prod = products.find(p => p.product_id === tx.product_id);
-        const name = prod ? prod.name : 'อื่นๆ';
+        const p = products.find(x => x.product_id === tx.product_id);
+        const name = p ? p.name : 'อื่นๆ';
         const idx = chartPie.data.labels.indexOf(name);
-
         if (chartPie.data.labels[0] === 'ยังไม่มียอด') {
             chartPie.data.labels = [name];
             chartPie.data.datasets[0].data = [tx.total_revenue];
             chartPie.data.datasets[0].backgroundColor = [CHART_COLORS[0]];
-        } else if (idx >= 0) {
-            chartPie.data.datasets[0].data[idx] += tx.total_revenue;
-        } else {
+        } else if (idx >= 0) { chartPie.data.datasets[0].data[idx] += tx.total_revenue; }
+        else {
             chartPie.data.labels.push(name);
             chartPie.data.datasets[0].data.push(tx.total_revenue);
             chartPie.data.datasets[0].backgroundColor.push(CHART_COLORS[chartPie.data.labels.length - 1] || '#6b7280');
         }
         chartPie.update('none');
     }
-
-    // Update hourly chart
     if (chartHourly) {
-        const hour = new Date(tx.timestamp).getHours();
-        const hourLabel = `${hour}:00`;
-        const idx = chartHourly.data.labels.indexOf(hourLabel);
-        if (idx >= 0) {
-            chartHourly.data.datasets[0].data[idx] += tx.total_revenue;
-        }
+        const h = new Date(tx.timestamp).getHours();
+        const idx = chartHourly.data.labels.indexOf(`${h}:00`);
+        if (idx >= 0) chartHourly.data.datasets[0].data[idx] += tx.total_revenue;
         chartHourly.update('none');
     }
-
-    // Update weekly (last bar is today)
     if (chartWeekly) {
-        const lastIdx = chartWeekly.data.datasets[0].data.length - 1;
-        chartWeekly.data.datasets[0].data[lastIdx] += tx.total_revenue;
+        const last = chartWeekly.data.datasets[0].data.length - 1;
+        chartWeekly.data.datasets[0].data[last] += tx.total_revenue;
         chartWeekly.update('none');
     }
 }
 
-// --- 9. EVENTS ---
-function attachEvents() {
-    document.getElementById('product-grid').addEventListener('click', e => {
-        const btn = e.target.closest('.sell-btn');
-        if (btn && btn.dataset.id) {
-            sellProduct(btn.dataset.id, btn);
-        }
-    });
-
-    document.getElementById('btn-settings').addEventListener('click', async () => {
-        await exportData();
-    });
-
+// --- 9. EDIT MODE ---
+function toggleEditMode() {
+    editMode = !editMode;
+    const grid = document.getElementById('product-grid');
+    const editBar = document.getElementById('edit-bar');
+    const settingsBtn = document.getElementById('btn-settings');
     const addBtn = document.getElementById('btn-add-product');
-    if (addBtn) {
-        addBtn.addEventListener('click', () => {
-            promptAddProduct();
-        });
+
+    if (editMode) {
+        grid.classList.add('edit-mode');
+        editBar.style.display = 'flex';
+        settingsBtn.classList.add('active');
+        if (addBtn) addBtn.style.display = 'none';
+    } else {
+        grid.classList.remove('edit-mode');
+        editBar.style.display = 'none';
+        settingsBtn.classList.remove('active');
+        if (addBtn) addBtn.style.display = '';
     }
+    renderProductGrid();
+    if (!editMode) applyPopularityScaling();
 }
 
-// --- 10. MICRO-ANIMATIONS ---
+async function editProduct(productId) {
+    const prod = products.find(p => p.product_id === productId);
+    if (!prod) return;
+
+    const name = prompt("ชื่อสินค้า:", prod.name);
+    if (name === null) return;
+    const price = parseFloat(prompt("ราคาขาย:", prod.price));
+    if (isNaN(price)) return;
+    const cost = parseFloat(prompt("ต้นทุน:", prod.cost) || prod.cost);
+    const emojiInput = prompt("Emoji สินค้า:", prod.emoji || '🍉');
+
+    prod.name = name;
+    prod.price = price;
+    prod.cost = cost;
+    if (emojiInput) prod.emoji = emojiInput;
+
+    await idbOp('products', 'readwrite', s => s.put(prod));
+    await loadProducts();
+    renderProductGrid();
+    showToast("อัปเดตสินค้าแล้ว ✅");
+}
+
+// --- 10. EVENTS ---
+function attachEvents() {
+    document.getElementById('product-grid').addEventListener('click', e => {
+        const sellBtn = e.target.closest('.sell-btn');
+        if (sellBtn && sellBtn.dataset.id) return sellProduct(sellBtn.dataset.id, sellBtn);
+
+        const editBtn = e.target.closest('.edit-btn');
+        if (editBtn && editBtn.dataset.id) return editProduct(editBtn.dataset.id);
+    });
+
+    document.getElementById('btn-settings').addEventListener('click', toggleEditMode);
+
+    const addBtn = document.getElementById('btn-add-product');
+    if (addBtn) addBtn.addEventListener('click', () => promptAddProduct());
+
+    const editAddBtn = document.getElementById('edit-add-product');
+    if (editAddBtn) editAddBtn.addEventListener('click', () => promptAddProduct());
+
+    const editDone = document.getElementById('edit-done');
+    if (editDone) editDone.addEventListener('click', toggleEditMode);
+}
+
+// --- 11. ANIMATIONS ---
 function playMicroAnimations(btn) {
     const revEl = document.getElementById('kpi-revenue');
     if (revEl) {
@@ -689,41 +575,32 @@ function playMicroAnimations(btn) {
         void revEl.offsetWidth;
         revEl.classList.add('kpi-bounce');
     }
-
-    if (navigator.vibrate) {
-        navigator.vibrate(50);
-    }
+    if (navigator.vibrate) navigator.vibrate(40);
 }
 
 function animateValue(obj, start, end, duration) {
-    let startTimestamp = null;
-    const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        const current = Math.floor(progress * (end - start) + start);
-        obj.innerHTML = current.toLocaleString();
-        if (progress < 1) {
-            window.requestAnimationFrame(step);
-        } else {
-            obj.innerHTML = end.toLocaleString();
-        }
+    let t0 = null;
+    const step = (ts) => {
+        if (!t0) t0 = ts;
+        const p = Math.min((ts - t0) / duration, 1);
+        obj.innerText = Math.floor(p * (end - start) + start).toLocaleString();
+        if (p < 1) requestAnimationFrame(step);
+        else obj.innerText = end.toLocaleString();
     };
-    window.requestAnimationFrame(step);
+    requestAnimationFrame(step);
 }
 
 function triggerConfetti() {
-    if (typeof confetti === 'function') {
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
-    }
+    if (typeof confetti === 'function') confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
 }
 
-// --- 11. UTILITIES ---
+// --- 12. UTILITIES ---
 function showToast(msg, type = "info") {
-    const container = document.getElementById('toast-container');
+    const c = document.getElementById('toast-container');
     const el = document.createElement('div');
     el.className = `toast ${type === 'error' ? 'toast-error' : 'toast-info'}`;
     el.innerText = msg;
-    container.appendChild(el);
+    c.appendChild(el);
     setTimeout(() => el.remove(), 3000);
 }
 
@@ -733,32 +610,26 @@ async function promptAddProduct() {
     const price = parseFloat(prompt("ราคาขาย:"));
     if (isNaN(price)) return;
     const cost = parseFloat(prompt("ต้นทุน:") || 0);
+    const emoji = prompt("Emoji สินค้า (เช่น 🍕):", PRODUCT_EMOJIS[products.length % PRODUCT_EMOJIS.length]);
 
-    const p = {
-        product_id: generateId(),
-        name,
-        price,
-        cost,
-        is_active: true
-    };
-    await idbOp('products', 'readwrite', s => s.put(p));
-    showToast("เพิ่มสินค้าแล้ว");
+    await idbOp('products', 'readwrite', s => s.put({
+        product_id: generateId(), name, price, cost, emoji: emoji || '🍉', is_active: true
+    }));
+    showToast("เพิ่มสินค้าแล้ว ✅");
     await loadProducts();
-    renderUI();
+    renderProductGrid();
+    if (!editMode) applyPopularityScaling();
     renderCharts();
 }
 
 async function exportData() {
     try {
         const txs = await idbOp('transactions', 'readonly', s => s.getAll());
-        const json = JSON.stringify(txs, null, 2);
-        const blob = new Blob([json], { type: "application/json" });
+        const blob = new Blob([JSON.stringify(txs, null, 2)], { type: "application/json" });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `micropos-export-${todayStr}.json`;
         link.click();
         showToast("ส่งออกข้อมูลสำเร็จ!");
-    } catch (e) {
-        showToast("ส่งออกข้อมูลล้มเหลว", "error");
-    }
+    } catch (e) { showToast("ส่งออกล้มเหลว", "error"); }
 }

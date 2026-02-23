@@ -5,74 +5,61 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0f1117">
+    <meta name="theme-color" content="#0b0f11">
     <title>MicroPOS</title>
-
-    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon"
         href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzBmM2QyZSIvPjx0ZXh0IHg9IjI1NiIgeT0iMzUwIiBmb250LXNpemU9IjI1MCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TVA8L3RleHQ+PC9zdmc+">
-
-    <!-- Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-    <!-- App Shell -->
     <div id="app">
 
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-top">
-                <div>
-                    <h1 id="shop-name-display" class="shop-name">MicroPOS</h1>
-                    <p class="shop-subtitle">Ultra-Fast Offline POS</p>
-                </div>
-                <button id="btn-settings" class="icon-btn" aria-label="Settings">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
-                        </path>
-                    </svg>
-                </button>
-            </div>
+        <!-- Thin Top Bar -->
+        <div class="top-bar">
+            <h1 id="shop-name-display" class="shop-name">MicroPOS</h1>
+            <button id="btn-settings" class="icon-btn" aria-label="Edit Mode">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                    </path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+            </button>
+        </div>
 
-            <!-- KPI Strip -->
-            <div class="kpi-strip">
-                <div class="kpi-card kpi-revenue">
-                    <span class="kpi-label">ยอดขาย</span>
-                    <span class="kpi-value" id="kpi-revenue">0</span>
-                    <span class="kpi-unit">฿</span>
-                </div>
-                <div class="kpi-divider"></div>
-                <div class="kpi-card">
-                    <span class="kpi-label">จำนวน</span>
-                    <span class="kpi-value" id="kpi-qty">0</span>
-                    <span class="kpi-unit">ชิ้น</span>
-                </div>
-                <div class="kpi-divider"></div>
-                <div class="kpi-card">
-                    <span class="kpi-label">Streak</span>
-                    <span class="kpi-value kpi-streak" id="kpi-streak">🔥 0</span>
-                </div>
+        <!-- KPI Cards Row -->
+        <div class="kpi-row">
+            <div class="kpi-card kpi-revenue">
+                <span class="kpi-label">ยอดขาย</span>
+                <span class="kpi-value" id="kpi-revenue">0</span>
+                <span class="kpi-unit">฿</span>
             </div>
-        </header>
+            <div class="kpi-card">
+                <span class="kpi-label">จำนวน</span>
+                <span class="kpi-value" id="kpi-qty">0</span>
+                <span class="kpi-unit">ชิ้น</span>
+            </div>
+            <div class="kpi-card kpi-streak">
+                <span class="kpi-label">Streak</span>
+                <span class="kpi-value" id="kpi-streak">🔥 0</span>
+            </div>
+        </div>
 
         <!-- Main Content -->
         <main class="app-main">
 
             <!-- Analytics Carousel -->
-            <section class="analytics-section">
+            <section class="analytics-card">
                 <div class="carousel-container" id="analytics-carousel">
                     <div class="carousel-track">
-
-                        <!-- Slide 1: Summary -->
+                        <!-- Slide 1: Mission -->
                         <div class="carousel-slide">
-                            <div class="slide-header">
-                                <span class="slide-label">🎯 เป้าหมาย</span>
-                            </div>
+                            <span class="slide-label">🎯 เป้าหมายวันนี้</span>
                             <div class="mission-numbers">
                                 <span class="mission-current" id="mission-current">0</span>
                                 <span class="mission-sep">/</span>
@@ -83,25 +70,21 @@
                             </div>
                             <p id="mission-message" class="mission-msg">เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪</p>
                         </div>
-
                         <!-- Slide 2: Pie -->
                         <div class="carousel-slide">
-                            <div class="slide-header"><span class="slide-label">📊 สัดส่วนยอดขาย</span></div>
+                            <span class="slide-label">📊 สัดส่วนยอดขาย</span>
                             <div class="chart-wrap"><canvas id="chart-pie"></canvas></div>
                         </div>
-
                         <!-- Slide 3: Hourly -->
                         <div class="carousel-slide">
-                            <div class="slide-header"><span class="slide-label">⏰ รายชั่วโมง</span></div>
+                            <span class="slide-label">⏰ รายชั่วโมง</span>
                             <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
                         </div>
-
                         <!-- Slide 4: Weekly -->
                         <div class="carousel-slide">
-                            <div class="slide-header"><span class="slide-label">📈 ย้อนหลัง 7 วัน</span></div>
+                            <span class="slide-label">📈 7 วันย้อนหลัง</span>
                             <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
                         </div>
-
                     </div>
                 </div>
                 <div class="carousel-dots" id="carousel-dots">
@@ -113,27 +96,29 @@
             </section>
 
             <!-- Products -->
-            <section class="products-section">
+            <section>
                 <div class="section-header">
                     <h2 class="section-title">สินค้า</h2>
                     <button id="btn-add-product" class="add-btn">+ เพิ่มใหม่</button>
                 </div>
                 <div id="product-grid" class="product-grid">
-                    <!-- JS injects here -->
+                    <!-- JS injects -->
                 </div>
             </section>
-
         </main>
 
         <!-- Toast -->
         <div id="toast-container" class="toast-container"></div>
+
+        <!-- Edit Mode Bottom Bar (hidden by default) -->
+        <div id="edit-bar" class="edit-bar" style="display:none">
+            <button class="btn-add" id="edit-add-product">+ เพิ่มสินค้า</button>
+            <button class="btn-done" id="edit-done">✓ เสร็จสิ้น</button>
+        </div>
     </div>
 
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <!-- Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- PWA SW -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -143,7 +128,6 @@
             });
         }
     </script>
-    <!-- App -->
     <script src="./app.js"></script>
 </body>
 
