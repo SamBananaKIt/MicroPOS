@@ -1,0 +1,50 @@
+/* Custom Micro-animations and overrides that Tailwind doesn't handle natively without config extensions */
+
+/* Smooth KPI updating */
+.kpi-number {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Ripple effect container */
+.ripple-btn {
+    position: relative;
+    overflow: hidden;
+    transform: translate3d(0, 0, 0);
+}
+
+/* Base scale transition for buttons */
+.btn-scale {
+    transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 100ms;
+}
+.btn-scale:active {
+    transform: scale(0.96);
+}
+
+/* Modal animations */
+.modal-overlay {
+    backdrop-filter: blur(4px);
+    transition: opacity 200ms ease-out;
+}
+.modal-content {
+    transition: transform 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 200ms;
+}
+
+/* Toast animations */
+@keyframes slideDownFade {
+    0% { transform: translateY(-100%); opacity: 0; }
+    10% { transform: translateY(0); opacity: 1; }
+    90% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-20px); opacity: 0; }
+}
+.toast-anim {
+    animation: slideDownFade 3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes countUpGrow {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); color: #7ED957; }
+    100% { transform: scale(1); }
+}
+.animate-count-up {
+    animation: countUpGrow 400ms ease-out;
+}
