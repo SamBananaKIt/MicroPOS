@@ -370,39 +370,45 @@ function updateLiveRanking() {
 
     const maxCount = ranked[0].count;
     const newOrder = ranked.map(r => r.id);
-
-    // Detect if champion changed
     const champChanged = prevRankOrder.length > 0 && prevRankOrder[0] !== newOrder[0];
 
-    list.innerHTML = '';
-    ranked.forEach((item, i) => {
-        const rank = i + 1;
-        const pct = (item.count / maxCount) * 100;
-        const isNew = !prevRankOrder.includes(item.id);
-        const movedUp = prevRankOrder.indexOf(item.id) > i;
+    // Check if order changed or list needs rebuild
+    const orderSame = prevRankOrder.length === newOrder.length && prevRankOrder.every((id, i) => id === newOrder[i]);
+    const existingItems = list.querySelectorAll('.rank-item');
 
+    if (!orderSame || existingItems.length !== ranked.length) {
+        // Rebuild list (order changed or different count)
+        list.innerHTML = '';
         const medals = ['🏆', '🥈', '🥉'];
-        const numLabel = rank <= 3 ? medals[rank - 1] : rank;
 
-        const el = document.createElement('div');
-        el.className = `rank-item rank-${rank <= 3 ? rank : 'other'}${(isNew || movedUp) ? ' rank-new' : ''}`;
-        el.innerHTML = `
-            <div class="rank-num">${numLabel}</div>
-            <div class="rank-info">
-                <div class="rank-name">${item.name}</div>
-                <div class="rank-bar-track"><div class="rank-bar-fill" style="width:0%"></div></div>
-            </div>
-            <span class="rank-qty">${item.count} ชิ้น</span>
-        `;
-        list.appendChild(el);
+        ranked.forEach((item, i) => {
+            const rank = i + 1;
+            const pct = (item.count / maxCount) * 100;
+            const movedUp = prevRankOrder.length > 0 && prevRankOrder.indexOf(item.id) > i;
 
-        // Animate progress bar fill
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                el.querySelector('.rank-bar-fill').style.width = `${pct}%`;
-            });
+            const el = document.createElement('div');
+            el.className = `rank-item rank-${rank <= 3 ? rank : 'other'}${movedUp ? ' rank-new' : ''}`;
+            el.dataset.productId = item.id;
+            el.innerHTML = `
+                <div class="rank-num">${rank <= 3 ? medals[rank - 1] : rank}</div>
+                <div class="rank-info">
+                    <div class="rank-name">${item.name}</div>
+                    <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div>
+                </div>
+                <span class="rank-qty">${item.count} ชิ้น</span>
+            `;
+            list.appendChild(el);
         });
-    });
+    } else {
+        // Same order — just update bars and counts in place (no rebuild = no bounce)
+        ranked.forEach((item, i) => {
+            const el = existingItems[i];
+            if (!el) return;
+            const pct = (item.count / maxCount) * 100;
+            el.querySelector('.rank-bar-fill').style.width = `${pct}%`;
+            el.querySelector('.rank-qty').textContent = `${item.count} ชิ้น`;
+        });
+    }
 
     // Champion change pop effect
     if (champChanged && typeof confetti === 'function') {
