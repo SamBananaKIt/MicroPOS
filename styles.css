@@ -155,8 +155,8 @@ body {
     display: flex;
     align-items: center;
     gap: var(--sp-sm);
-    margin: 0 var(--sp-xl) var(--sp-sm);
-    padding: 8px 14px;
+    margin: 14px 18px 0;
+    padding: 8px 12px;
     border-radius: var(--r-sm);
     background: linear-gradient(135deg, rgba(20, 224, 138, 0.06), rgba(20, 224, 138, 0.02));
     border: 1px solid rgba(20, 224, 138, 0.12);
