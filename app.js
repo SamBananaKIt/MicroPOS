@@ -484,8 +484,8 @@ function renderPieChart(todayTx) {
         options: {
             responsive: true, maintainAspectRatio: false, cutout: '65%',
             plugins: {
-                legend: { position: 'right', labels: { boxWidth: 8, padding: 8, font: { size: 10, family: 'Inter' } } },
-                tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString()} ฿` } }
+                legend: { position: 'right', labels: { boxWidth: 8, padding: 8, font: { size: 10, family: 'Inter' }, color: '#6B8796' } },
+                tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString()} ฿` }, bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } }
             }
         },
         plugins: [donutCenterPlugin]
@@ -498,7 +498,18 @@ function renderHourlyChart(todayTx) {
     const ctx = document.getElementById('chart-hourly');
     if (!ctx) return;
     if (chartHourly) chartHourly.destroy();
-    chartHourly = new Chart(ctx, { type: 'bar', data: { labels: Object.keys(h).map(x => `${x}:00`), datasets: [{ data: Object.values(h), backgroundColor: 'rgba(0, 179, 198, 0.4)', borderRadius: 6, barThickness: 10 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } }, y: { grid: { color: 'rgba(0,50,80,0.05)' }, ticks: { font: { size: 8 } }, beginAtZero: true } }, plugins: { legend: { display: false } } } });
+    chartHourly = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: Object.keys(h).map(x => `${x}:00`), datasets: [{ data: Object.values(h), backgroundColor: 'rgba(0, 179, 198, 0.4)', borderRadius: 6, barThickness: 10 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter', weight: '600' }, color: '#9CA3AF', maxRotation: 0 } },
+                y: { grid: { color: 'rgba(0,50,80,0.05)', drawBorder: false }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter' }, color: '#9CA3AF' }, beginAtZero: true }
+            },
+            plugins: { legend: { display: false }, tooltip: { bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } } }
+        }
+    });
 }
 
 function renderWeeklyChart(allTx) {
@@ -512,7 +523,22 @@ function renderWeeklyChart(allTx) {
     const ctx = document.getElementById('chart-weekly');
     if (!ctx) return;
     if (chartWeekly) chartWeekly.destroy();
-    chartWeekly = new Chart(ctx, { type: 'line', data: { labels: days, datasets: [{ data: revenues, borderColor: '#14e08a', backgroundColor: 'rgba(20,224,138,0.08)', fill: true, tension: 0.4, borderWidth: 2.5, pointBackgroundColor: '#14e08a', pointRadius: 3, pointHoverRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { font: { size: 8 } }, beginAtZero: true } }, plugins: { legend: { display: false }, title: { display: true, text: `Growth: ${growth > 0 ? '+' : ''}${growth}%`, font: { size: 11, weight: '700' }, color: growth >= 0 ? '#14e08a' : '#ef4444', padding: { bottom: 4 } } } } });
+    chartWeekly = new Chart(ctx, {
+        type: 'line',
+        data: { labels: days, datasets: [{ data: revenues, borderColor: '#00B3C6', backgroundColor: 'rgba(0, 179, 198, 0.1)', fill: true, tension: 0.4, borderWidth: 2.5, pointBackgroundColor: '#00B3C6', pointRadius: 3, pointHoverRadius: 5 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, family: 'Inter', weight: '600' }, color: '#9CA3AF' } },
+                y: { grid: { color: 'rgba(0,50,80,0.05)' }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter' }, color: '#9CA3AF' }, beginAtZero: true }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } },
+                title: { display: true, text: `Growth: ${growth > 0 ? '+' : ''}${growth}%`, font: { size: 11, weight: '700', family: 'Inter' }, color: growth >= 0 ? '#00B3C6' : '#ef4444', padding: { bottom: 4 } }
+            }
+        }
+    });
 }
 
 function updateChartsOnSale(tx) {
