@@ -266,7 +266,10 @@ function updateMissionUI() {
     const curEl = document.getElementById('mission-current');
     const targetEl = document.getElementById('mission-target');
     const bar = document.getElementById('mission-progress-bar');
-    if (curEl) curEl.innerText = dailyState.goal_progress.toLocaleString();
+    if (curEl) {
+        const startVal = Number(curEl.innerText.replace(/,/g, '')) || 0;
+        animateValue(curEl, startVal, dailyState.goal_progress, 600);
+    }
     if (targetEl) targetEl.innerText = dailyState.goal_value.toLocaleString() + (profile.settings.daily_goal_mode === 'revenue' ? '฿' : '');
     let pct = Math.min((dailyState.goal_progress / dailyState.goal_value) * 100, 100);
     if (bar) bar.style.width = `${pct}%`;
@@ -424,8 +427,16 @@ function updateLiveRanking() {
 // --- CAROUSEL ---
 function initCarousel() {
     const c = document.getElementById('analytics-carousel');
+    const track = c ? c.querySelector('.carousel-track') : null;
     const dots = document.querySelectorAll('.carousel-dot');
     if (!c || !dots.length) return;
+
+    // Add swipe hint animation on load
+    if (track) {
+        track.classList.add('swipe-hint');
+        setTimeout(() => track.classList.remove('swipe-hint'), 2000);
+    }
+
     c.addEventListener('scroll', () => { const idx = Math.round(c.scrollLeft / c.clientWidth); dots.forEach((d, i) => d.classList.toggle('active', i === idx)); });
     dots.forEach(d => d.addEventListener('click', () => c.scrollTo({ left: parseInt(d.dataset.idx) * c.clientWidth, behavior: 'smooth' })));
 }
@@ -587,8 +598,96 @@ function toggleEditMode() {
 let modalProductId = null;
 let modalImageBase64 = null;
 
+// Cropper State
+let cropImgObj = null;
+let cropScale = 1;
+let cropX = 0, cropY = 0;
+let isDraggingCrop = false;
+let startX = 0, startY = 0;
+
+function resetCropper() {
+    cropImgObj = null;
+    document.getElementById('crop-controls').style.display = 'none';
+}
+
+function initCropper(base64) {
+    cropImgObj = new Image();
+    cropImgObj.onload = () => {
+        const minDim = Math.min(cropImgObj.width, cropImgObj.height);
+        cropScale = 140 / minDim;
+        cropX = 0;
+        cropY = 0;
+
+        const zoomInput = document.getElementById('crop-zoom');
+        if (zoomInput) {
+            zoomInput.min = cropScale * 0.5;
+            zoomInput.max = cropScale * 3;
+            zoomInput.value = cropScale;
+        }
+        document.getElementById('crop-controls').style.display = 'block';
+        drawCrop();
+    };
+    cropImgObj.src = base64;
+}
+
+function drawCrop() {
+    if (!cropImgObj) return;
+    let canvas = document.getElementById('crop-canvas');
+    if (!canvas) {
+        const preview = document.getElementById('modal-img-preview');
+        preview.innerHTML = '<canvas id="crop-canvas" width="140" height="140"></canvas>';
+        canvas = document.getElementById('crop-canvas');
+        attachCropEvents(canvas);
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#F4F8FB';
+    ctx.fillRect(0, 0, 140, 140);
+
+    const w = cropImgObj.width * cropScale;
+    const h = cropImgObj.height * cropScale;
+    const dx = (140 - w) / 2 + cropX;
+    const dy = (140 - h) / 2 + cropY;
+
+    ctx.drawImage(cropImgObj, dx, dy, w, h);
+}
+
+function attachCropEvents(canvas) {
+    canvas.addEventListener('pointerdown', e => {
+        isDraggingCrop = true;
+        startX = e.clientX - cropX;
+        startY = e.clientY - cropY;
+        canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+        if (!isDraggingCrop) return;
+        cropX = e.clientX - startX;
+        cropY = e.clientY - startY;
+        drawCrop();
+    });
+    canvas.addEventListener('pointerup', () => isDraggingCrop = false);
+
+    const zoomInput = document.getElementById('crop-zoom');
+    if (zoomInput) {
+        // Prevent duplicate listeners, simple overwrite
+        zoomInput.oninput = (e) => {
+            cropScale = parseFloat(e.target.value);
+            drawCrop();
+        };
+    }
+}
+
+function getFinalImage() {
+    if (cropImgObj) {
+        const canvas = document.getElementById('crop-canvas');
+        if (canvas) return canvas.toDataURL('image/jpeg', 0.8);
+    }
+    return modalImageBase64;
+}
+
 function openProductModal(productId = null) {
     modalProductId = productId;
+    resetCropper();
+
     const modal = document.getElementById('product-modal');
     const title = document.getElementById('modal-title');
     const nameInput = document.getElementById('modal-input-name');
@@ -606,7 +705,7 @@ function openProductModal(productId = null) {
         costInput.value = prod.cost || '';
         modalImageBase64 = prod.image || null;
         if (prod.image) {
-            imgPreview.innerHTML = `<img src="${prod.image}">`;
+            imgPreview.innerHTML = `<img src="${prod.image}" style="width:100%; height:100%; object-fit:cover;">`;
         } else {
             imgPreview.innerHTML = prod.emoji || '📷';
         }
@@ -639,13 +738,15 @@ async function saveProductModal() {
         return;
     }
 
+    const finalImage = getFinalImage();
+
     if (modalProductId) {
         const prod = products.find(p => p.product_id === modalProductId);
         if (prod) {
             prod.name = name;
             prod.price = price;
             prod.cost = cost;
-            prod.image = modalImageBase64;
+            prod.image = finalImage;
             await idbOp('products', 'readwrite', s => s.put(prod));
             showToast("อัปเดตสำเร็จ ✅");
         }
@@ -653,7 +754,7 @@ async function saveProductModal() {
         const newId = generateId();
         const emoji = PRODUCT_EMOJIS[products.length % PRODUCT_EMOJIS.length];
         await idbOp('products', 'readwrite', s => s.put({
-            product_id: newId, name, price, cost, emoji, image: modalImageBase64, is_active: true
+            product_id: newId, name, price, cost, emoji, image: finalImage, is_active: true
         }));
         showToast("เพิ่มสินค้าแล้ว ✅");
     }
@@ -688,9 +789,8 @@ function triggerModalImageUpload() {
     input.className = 'hidden-input';
     input.addEventListener('change', async () => {
         if (!input.files[0]) return;
-        const base64 = await compressImage(input.files[0]);
-        modalImageBase64 = base64;
-        document.getElementById('modal-img-preview').innerHTML = `<img src="${base64}">`;
+        const base64 = await compressImage(input.files[0], 800); // Allow higher res before crop
+        initCropper(base64);
         input.remove();
     });
     document.body.appendChild(input);

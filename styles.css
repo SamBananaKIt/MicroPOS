@@ -207,10 +207,23 @@ body {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     scroll-behavior: smooth;
+    position: relative;
 }
 
 .carousel-container::-webkit-scrollbar {
     display: none;
+}
+
+/* Edge Fade Effect */
+.carousel-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to left, var(--card), transparent);
+    pointer-events: none;
 }
 
 .carousel-track {
@@ -218,8 +231,8 @@ body {
 }
 
 .carousel-slide {
-    flex: 0 0 100%;
-    scroll-snap-align: start;
+    flex: 0 0 88%;
+    scroll-snap-align: center;
     padding: var(--sp-xl);
     min-height: 180px;
 }
@@ -244,17 +257,40 @@ body {
 .carousel-dot {
     width: 6px;
     height: 6px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    transition: all 0.3s;
+    border-radius: 4px;
+    background: rgba(0, 50, 80, 0.12);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     cursor: pointer;
 }
 
 .carousel-dot.active {
+    width: 18px;
     background: var(--primary);
-    width: 20px;
     border-radius: 8px;
     box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* Swipe Hint Animation */
+.swipe-hint {
+    animation: swipeHintAnim 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.5s;
+}
+
+@keyframes swipeHintAnim {
+    0% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-15px);
+    }
+
+    40% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
 }
 
 /* Mission */
@@ -444,7 +480,21 @@ body {
 .product-item.hot .product-circle {
     border-color: rgba(0, 179, 198, 0.3);
     box-shadow: 0 8px 24px rgba(0, 179, 198, 0.12);
-    /* Soft teal shadow instead of neon glow */
+    animation: pulseGlow 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 0 10px rgba(0, 179, 198, 0.1);
+    }
+
+    50% {
+        box-shadow: 0 0 24px rgba(0, 179, 198, 0.25);
+    }
+
+    100% {
+        box-shadow: 0 0 10px rgba(0, 179, 198, 0.1);
+    }
 }
 
 .product-item.hot .ring-fill {
@@ -927,17 +977,20 @@ body {
 }
 
 .img-preview {
-    width: 80px;
-    height: 80px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
     background: #F4F8FB;
     border: 2px dashed rgba(0, 179, 198, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 32px;
     overflow: hidden;
     transition: all 0.2s;
+    position: relative;
+    touch-action: none;
+    /* Prevent scroll when panning crop */
 }
 
 .img-preview img {
