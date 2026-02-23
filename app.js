@@ -15,7 +15,7 @@ let chartPie = null, chartHourly = null, chartWeekly = null;
 let editMode = false;
 
 const PRODUCT_EMOJIS = ['🍉', '☕', '🧋', '🥤', '🍊', '🥐', '🍜', '🧁', '🍕', '🍔', '🍟', '🥗', '🍦', '🍪', '🍩'];
-const CHART_COLORS = ['#14e08a', '#5ad1ff', '#ffd166', '#ff7a5b', '#a78bfa', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#ef4444'];
+const CHART_COLORS = ['#00B3C6', '#4C9AFF', '#8FD3F4', '#9BADB6'];
 
 if (typeof Chart !== 'undefined') {
     Chart.defaults.color = 'rgba(255,255,255,0.4)';
@@ -452,7 +452,7 @@ const donutCenterPlugin = {
         const cx = (chartArea.left + chartArea.right) / 2;
         const cy = (chartArea.top + chartArea.bottom) / 2;
         ctx.font = 'bold 18px Inter';
-        ctx.fillStyle = '#14e08a';
+        ctx.fillStyle = '#00B3C6';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${total.toLocaleString()}฿`, cx, cy);
@@ -487,7 +487,7 @@ function renderHourlyChart(todayTx) {
     const ctx = document.getElementById('chart-hourly');
     if (!ctx) return;
     if (chartHourly) chartHourly.destroy();
-    chartHourly = new Chart(ctx, { type: 'bar', data: { labels: Object.keys(h).map(x => `${x}:00`), datasets: [{ data: Object.values(h), backgroundColor: 'rgba(20,224,138,0.4)', borderRadius: 6, barThickness: 10 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } }, y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { font: { size: 8 } }, beginAtZero: true } }, plugins: { legend: { display: false } } } });
+    chartHourly = new Chart(ctx, { type: 'bar', data: { labels: Object.keys(h).map(x => `${x}:00`), datasets: [{ data: Object.values(h), backgroundColor: 'rgba(0, 179, 198, 0.4)', borderRadius: 6, barThickness: 10 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } }, y: { grid: { color: 'rgba(0,50,80,0.05)' }, ticks: { font: { size: 8 } }, beginAtZero: true } }, plugins: { legend: { display: false } } } });
 }
 
 function renderWeeklyChart(allTx) {

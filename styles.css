@@ -1,23 +1,25 @@
 /* ===== MicroPOS Design System v3 — Circular Grid ===== */
 
 :root {
-    --bg: #0b0f11;
-    --surface: #111618;
-    --card: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.012));
-    --card-border: rgba(255, 255, 255, 0.05);
-    --card-hover: rgba(255, 255, 255, 0.06);
-    --glass: rgba(255, 255, 255, 0.04);
-    --primary: #14e08a;
-    --primary-deep: #07b654;
-    --primary-glow: rgba(20, 224, 138, 0.15);
-    --primary-shadow: rgba(20, 224, 138, 0.12);
-    --accent-warm: #ffd166;
-    --accent-blue: #5ad1ff;
-    --accent-orange: #ff7a5b;
-    --text-bright: #e9f8f0;
-    --text-primary: #cdd8d3;
-    --text-muted: #7a8a85;
-    --text-dim: #4a5652;
+    --bg: #F4F8FB;
+    --surface: #FFFFFF;
+    --card: #FFFFFF;
+    --card-border: rgba(0, 50, 80, 0.06);
+    --card-hover: rgba(0, 50, 80, 0.03);
+    --glass: rgba(255, 255, 255, 0.8);
+    --primary: #00B3C6;
+    --primary-deep: #0093A4;
+    --primary-glow: rgba(0, 179, 198, 0.15);
+    --primary-shadow: rgba(0, 160, 200, 0.08);
+    --accent-warm: #4C9AFF;
+    /* Reused variable name but it's cool secondary now */
+    --accent-blue: #8FD3F4;
+    --accent-orange: #00B3C6;
+    /* Changed hot rank to teal */
+    --text-bright: #1A2A33;
+    --text-primary: #1A2A33;
+    --text-muted: #6B8796;
+    --text-dim: #9BADB6;
     --sp-xs: 4px;
     --sp-sm: 8px;
     --sp-md: 12px;
@@ -396,7 +398,7 @@ body {
 
 .activity-ring .ring-bg {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.06);
+    stroke: rgba(0, 50, 80, 0.05);
     stroke-width: 3;
 }
 
@@ -405,8 +407,7 @@ body {
     stroke: var(--primary);
     stroke-width: 3;
     stroke-linecap: round;
-    transition: stroke-dashoffset 0.6s ease, stroke 0.3s;
-    filter: drop-shadow(0 0 3px var(--primary-glow));
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.3s;
 }
 
 /* The circle */
@@ -415,14 +416,17 @@ body {
     height: 72px;
     border-radius: 50%;
     overflow: hidden;
-    background: var(--surface);
-    border: 2px solid rgba(255, 255, 255, 0.08);
+    background: #FFFFFF;
+    border: 2px solid rgba(0, 50, 80, 0.05);
+    /* Light border */
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     position: relative;
     z-index: 2;
+    box-shadow: 0 4px 12px rgba(0, 50, 80, 0.03);
+    /* Soft base shadow */
 }
 
 .product-circle img {
@@ -436,28 +440,29 @@ body {
     line-height: 1;
 }
 
-/* Hot product — softer glow */
+/* Hot product — softer glow, cleaner gradient */
 .product-item.hot .product-circle {
-    border-color: rgba(20, 224, 138, 0.35);
-    box-shadow: 0 0 20px rgba(20, 224, 138, 0.25);
+    border-color: rgba(0, 179, 198, 0.3);
+    box-shadow: 0 8px 24px rgba(0, 179, 198, 0.12);
+    /* Soft teal shadow instead of neon glow */
 }
 
 .product-item.hot .ring-fill {
-    stroke: var(--primary);
+    stroke: url(#hotGradient);
+    /* We will inject an SVG def for this later or fallback to teal */
     stroke-width: 4;
-    filter: drop-shadow(0 0 6px rgba(20, 224, 138, 0.4));
 }
 
-/* Tap feedback ring */
+/* Tap visual feedback */
 .product-circle::after {
     content: '';
     position: absolute;
-    inset: -4px;
+    inset: -2px;
     border-radius: 50%;
     border: 2px solid var(--primary);
     opacity: 0;
-    transform: scale(0.8);
-    transition: all 0.2s ease;
+    transform: scale(0.85);
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
     pointer-events: none;
 }
 
