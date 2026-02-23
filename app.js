@@ -991,7 +991,7 @@ function showToast(msg, type = "info", showUndo = false) {
     }
 
     c.appendChild(el);
-    const timeout = setTimeout(() => el.remove(), showUndo ? 4000 : 3000);
+    const timeout = setTimeout(() => el.remove(), showUndo ? 7000 : 3000);
     if (showUndo) undoTimeout = timeout;
 }
 

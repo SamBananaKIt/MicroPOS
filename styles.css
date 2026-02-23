@@ -895,7 +895,7 @@ body {
 }
 
 .toast.toast-undo {
-    animation: toastSlide 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: toastSlide 7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .undo-btn {
