@@ -213,7 +213,7 @@ function renderProductGrid() {
             circleInner = `<span class="emoji-fallback">${emoji}</span>`;
         }
 
-        const saleBadge = salesCount > 0 ? `<span class="sale-count">${salesCount}</span>` : '';
+        const saleBadge = `<span class="sale-count" style="display: ${salesCount > 0 ? 'flex' : 'none'}">${salesCount}</span>`;
 
         // Activity ring SVG: starts at 0%, updated by applyPopularityScaling
         const ringSVG = `<svg class="activity-ring" viewBox="0 0 88 88">
@@ -313,7 +313,10 @@ function applyPopularityScaling() {
 
         // Update sale count badge
         const badge = item.querySelector('.sale-count');
-        if (badge && c > 0) badge.textContent = c;
+        if (badge) {
+            badge.textContent = c;
+            badge.style.display = c > 0 ? 'flex' : 'none';
+        }
 
         if (i === topIdx && topCount > 0) {
             item.classList.add('hot');
