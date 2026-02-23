@@ -150,6 +150,36 @@ body {
     margin-top: 2px;
 }
 
+/* ===== Top Seller Ticker ===== */
+.top-ticker {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-sm);
+    margin: 0 var(--sp-xl) var(--sp-sm);
+    padding: 8px 14px;
+    border-radius: var(--r-sm);
+    background: linear-gradient(135deg, rgba(20, 224, 138, 0.06), rgba(20, 224, 138, 0.02));
+    border: 1px solid rgba(20, 224, 138, 0.12);
+}
+
+.ticker-icon {
+    font-size: 14px;
+}
+
+.ticker-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ticker-text strong {
+    color: var(--primary);
+    font-weight: 800;
+}
+
 /* ===== Main ===== */
 .app-main {
     flex: 1;
@@ -345,19 +375,54 @@ body {
     transform: scale(0.92);
 }
 
+/* The circle wrapper (contains SVG ring + circle) */
+.product-circle-wrap {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Activity ring SVG */
+.activity-ring {
+    position: absolute;
+    inset: 0;
+    width: 88px;
+    height: 88px;
+    transform: rotate(-90deg);
+}
+
+.activity-ring .ring-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.06);
+    stroke-width: 3;
+}
+
+.activity-ring .ring-fill {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease, stroke 0.3s;
+    filter: drop-shadow(0 0 3px var(--primary-glow));
+}
+
 /* The circle */
 .product-circle {
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
     overflow: hidden;
     background: var(--surface);
-    border: 2.5px solid var(--card-border);
+    border: 2px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
     position: relative;
+    z-index: 2;
 }
 
 .product-circle img {
@@ -367,14 +432,20 @@ body {
 }
 
 .product-circle .emoji-fallback {
-    font-size: 36px;
+    font-size: 32px;
     line-height: 1;
 }
 
-/* Hot product glow */
+/* Hot product — softer glow */
 .product-item.hot .product-circle {
-    border-color: rgba(20, 224, 138, 0.5);
-    box-shadow: 0 0 24px rgba(20, 224, 138, 0.4), 0 0 60px rgba(20, 224, 138, 0.12);
+    border-color: rgba(20, 224, 138, 0.35);
+    box-shadow: 0 0 20px rgba(20, 224, 138, 0.25);
+}
+
+.product-item.hot .ring-fill {
+    stroke: var(--primary);
+    stroke-width: 4;
+    filter: drop-shadow(0 0 6px rgba(20, 224, 138, 0.4));
 }
 
 /* Tap feedback ring */
@@ -386,7 +457,7 @@ body {
     border: 2px solid var(--primary);
     opacity: 0;
     transform: scale(0.8);
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
     pointer-events: none;
 }
 

@@ -171,6 +171,7 @@ async function sellProduct(productId, qty = 1) {
     updateKPIs();
     updateMissionUI();
     applyPopularityScaling();
+    updateTopTicker();
     showToast(`${prod.name} x${qty} ✓`);
     if (navigator.vibrate) navigator.vibrate(40);
 
@@ -186,11 +187,13 @@ function renderUI() {
     updateKPIs(false);
     updateMissionUI();
     applyPopularityScaling();
+    updateTopTicker();
 }
 
 function renderProductGrid() {
     const grid = document.getElementById('product-grid');
     grid.innerHTML = '';
+    const CIRC = 2 * Math.PI * 40; // circumference for activity ring (r=40)
 
     products.forEach((p, i) => {
         const emoji = p.emoji || PRODUCT_EMOJIS[i % PRODUCT_EMOJIS.length];
@@ -201,7 +204,6 @@ function renderProductGrid() {
         item.className = 'product-item';
         item.dataset.productId = p.product_id;
 
-        // Circle content: image or emoji
         let circleInner;
         if (p.image) {
             circleInner = `<img src="${p.image}" alt="${p.name}">`;
@@ -209,14 +211,19 @@ function renderProductGrid() {
             circleInner = `<span class="emoji-fallback">${emoji}</span>`;
         }
 
-        // Sale count badge (only if > 0)
         const saleBadge = salesCount > 0 ? `<span class="sale-count">${salesCount}</span>` : '';
+
+        // Activity ring SVG: starts at 0%, updated by applyPopularityScaling
+        const ringSVG = `<svg class="activity-ring" viewBox="0 0 88 88">
+            <circle class="ring-bg" cx="44" cy="44" r="40"/>
+            <circle class="ring-fill" cx="44" cy="44" r="40" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC}" data-circ="${CIRC}"/>
+        </svg>`;
 
         if (editMode) {
             item.innerHTML = `
-                <div class="product-circle">
-                    ${circleInner}
-                    <div class="edit-overlay">✏️</div>
+                <div class="product-circle-wrap">
+                    ${ringSVG}
+                    <div class="product-circle">${circleInner}<div class="edit-overlay">✏️</div></div>
                 </div>
                 ${saleBadge}
                 <span class="product-label">${p.name}</span>
@@ -224,7 +231,10 @@ function renderProductGrid() {
             `;
         } else {
             item.innerHTML = `
-                <div class="product-circle">${circleInner}</div>
+                <div class="product-circle-wrap">
+                    ${ringSVG}
+                    <div class="product-circle">${circleInner}</div>
+                </div>
                 ${saleBadge}
                 <span class="product-label">${p.name}</span>
                 <span class="product-price-tag">฿${p.price}</span>
@@ -270,7 +280,7 @@ function updateMissionUI() {
     }
 }
 
-// --- POPULARITY SCALING ---
+// --- POPULARITY SCALING + ACTIVITY RING ---
 function applyPopularityScaling() {
     if (editMode) return;
     const items = document.querySelectorAll('.product-item');
@@ -283,8 +293,17 @@ function applyPopularityScaling() {
 
     items.forEach((item, i) => {
         const c = counts[i] || 0;
-        const scale = 1 + (c / maxC) * 0.1;
+        // Soft scaling: 10-15% max
+        const scale = 1 + (c / maxC) * 0.12;
         item.style.transform = `scale(${scale})`;
+
+        // Activity ring: fill proportional to sales ratio
+        const ringFill = item.querySelector('.ring-fill');
+        if (ringFill) {
+            const circ = parseFloat(ringFill.dataset.circ);
+            const pct = maxC > 0 ? (c / maxC) : 0;
+            ringFill.style.strokeDashoffset = circ * (1 - pct);
+        }
 
         // Remove old badges
         item.querySelector('.hot-badge')?.remove();
@@ -302,6 +321,28 @@ function applyPopularityScaling() {
             item.appendChild(hb);
         }
     });
+}
+
+// --- TOP SELLER TICKER ---
+function updateTopTicker() {
+    const ticker = document.getElementById('top-seller-ticker');
+    const tickerText = document.getElementById('ticker-text');
+    if (!ticker || !tickerText) return;
+
+    let topName = '', topRev = 0;
+    for (const id in todaySalesByProduct) {
+        if (todaySalesByProduct[id].revenue > topRev) {
+            topRev = todaySalesByProduct[id].revenue;
+            topName = todaySalesByProduct[id].name;
+        }
+    }
+
+    if (topRev > 0) {
+        ticker.style.display = 'flex';
+        tickerText.innerHTML = `วันนี้ขายดีสุด: <strong>${topName}</strong> (฿${topRev.toLocaleString()})`;
+    } else {
+        ticker.style.display = 'none';
+    }
 }
 
 // --- CAROUSEL ---
@@ -323,6 +364,26 @@ async function renderCharts() {
     renderWeeklyChart(allTx);
 }
 
+// Donut center text plugin
+const donutCenterPlugin = {
+    id: 'donutCenter',
+    afterDraw(chart) {
+        if (chart.config.type !== 'doughnut') return;
+        const { ctx, chartArea } = chart;
+        const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+        if (total === 0 || (chart.data.labels[0] === 'ยังไม่มี')) return;
+        ctx.save();
+        const cx = (chartArea.left + chartArea.right) / 2;
+        const cy = (chartArea.top + chartArea.bottom) / 2;
+        ctx.font = 'bold 18px Inter';
+        ctx.fillStyle = '#14e08a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${total.toLocaleString()}฿`, cx, cy);
+        ctx.restore();
+    }
+};
+
 function renderPieChart(todayTx) {
     const rev = {};
     todayTx.forEach(t => { const p = products.find(x => x.product_id === t.product_id); rev[p ? p.name : '?'] = (rev[p ? p.name : '?'] || 0) + t.total_revenue; });
@@ -330,7 +391,18 @@ function renderPieChart(todayTx) {
     const ctx = document.getElementById('chart-pie');
     if (!ctx) return;
     if (chartPie) chartPie.destroy();
-    chartPie = new Chart(ctx, { type: 'doughnut', data: { labels: labels.length ? labels : ['ยังไม่มี'], datasets: [{ data: data.length ? data : [1], backgroundColor: data.length ? CHART_COLORS.slice(0, labels.length) : ['rgba(255,255,255,0.06)'], borderWidth: 0, borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels: { boxWidth: 8, padding: 8, font: { size: 10, family: 'Inter' } } } } } });
+    chartPie = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: labels.length ? labels : ['ยังไม่มี'], datasets: [{ data: data.length ? data : [1], backgroundColor: data.length ? CHART_COLORS.slice(0, labels.length) : ['rgba(255,255,255,0.06)'], borderWidth: 0, borderRadius: 4 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 8, padding: 8, font: { size: 10, family: 'Inter' } } },
+                tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString()} ฿` } }
+            }
+        },
+        plugins: [donutCenterPlugin]
+    });
 }
 
 function renderHourlyChart(todayTx) {
