@@ -5,142 +5,105 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0f3d2e">
-    <title>MicroPOS - Fast Offline</title>
+    <meta name="theme-color" content="#0f1117">
+    <title>MicroPOS</title>
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon"
-        href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzBmM2QyZSIvPjx0ZXh0IHg9IjI1NiIgeT0iMzUwIiBmb250LXNpemU9IjI1MCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TVA8L3RleHQ+PC9zdmc+">
+        href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0iIzBmM2QyZSIvPjx0ZXh0IHg9IjI1NiIgeT0iMzUwIiBmb250LXNpemU9IjI1MCIgZmlsbD0iI2ZmZmZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TVA8L3RleHQ+PC9zdmc+">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind config -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        background: '#F9FAFB',
-                        primary: '#0f3d2e',
-                        accent: '#7ED957'
-                    },
-                    boxShadow: {
-                        'soft': '0 4px 20px rgba(0, 0, 0, 0.05)',
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
-<body class="bg-background text-gray-800 font-sans antialiased min-h-screen flex flex-col items-center">
+<body>
+    <!-- App Shell -->
+    <div id="app">
 
-    <!-- Main App Container -->
-    <div id="app" class="w-full max-w-md bg-white min-h-screen shadow-soft relative flex flex-col">
-
-        <!-- Top Bar: Header & KPIs -->
-        <header class="bg-primary text-white p-4 pb-6 rounded-b-3xl shadow-md z-10 relative">
-            <div class="flex justify-between items-center mb-4">
-                <h1 id="shop-name-display" class="text-xl font-bold tracking-tight">Loading...</h1>
-                <button id="btn-settings" class="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-top">
+                <div>
+                    <h1 id="shop-name-display" class="shop-name">MicroPOS</h1>
+                    <p class="shop-subtitle">Ultra-Fast Offline POS</p>
+                </div>
+                <button id="btn-settings" class="icon-btn" aria-label="Settings">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
                         </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     </svg>
                 </button>
             </div>
 
-            <div class="grid grid-cols-3 gap-3 text-center">
-                <div class="bg-white/10 rounded-xl p-2 backdrop-blur-sm">
-                    <p class="text-xs text-white/70 mb-1">ยอดขาย(฿)</p>
-                    <p id="kpi-revenue" class="text-lg font-semibold kpi-number">0</p>
+            <!-- KPI Strip -->
+            <div class="kpi-strip">
+                <div class="kpi-card kpi-revenue">
+                    <span class="kpi-label">ยอดขาย</span>
+                    <span class="kpi-value" id="kpi-revenue">0</span>
+                    <span class="kpi-unit">฿</span>
                 </div>
-                <div class="bg-white/10 rounded-xl p-2 backdrop-blur-sm">
-                    <p class="text-xs text-white/70 mb-1">จำนวน(ชิ้น)</p>
-                    <p id="kpi-qty" class="text-lg font-semibold kpi-number">0</p>
+                <div class="kpi-divider"></div>
+                <div class="kpi-card">
+                    <span class="kpi-label">จำนวน</span>
+                    <span class="kpi-value" id="kpi-qty">0</span>
+                    <span class="kpi-unit">ชิ้น</span>
                 </div>
-                <div class="bg-white/10 rounded-xl p-2 backdrop-blur-sm relative overflow-hidden group">
-                    <div
-                        class="absolute inset-0 bg-gradient-to-tr from-orange-400 to-yellow-300 opacity-20 group-hover:opacity-30 transition-opacity">
-                    </div>
-                    <p class="text-xs text-white/70 mb-1 relative z-10">Streak(วัน)</p>
-                    <p id="kpi-streak"
-                        class="text-lg font-semibold text-yellow-300 flex justify-center items-center gap-1 relative z-10">
-                        <span class="text-sm">🔥</span>0
-                    </p>
+                <div class="kpi-divider"></div>
+                <div class="kpi-card">
+                    <span class="kpi-label">Streak</span>
+                    <span class="kpi-value kpi-streak" id="kpi-streak">🔥 0</span>
                 </div>
             </div>
         </header>
 
-        <!-- Main Content Area -->
-        <main class="flex-1 overflow-y-auto w-full px-4 py-6 pb-24 space-y-8 scroll-smooth">
+        <!-- Main Content -->
+        <main class="app-main">
 
             <!-- Analytics Carousel -->
-            <section class="bg-white border border-gray-100 rounded-2xl shadow-sm relative overflow-hidden">
-                <!-- Carousel Slides -->
+            <section class="analytics-section">
                 <div class="carousel-container" id="analytics-carousel">
                     <div class="carousel-track">
 
                         <!-- Slide 1: Summary -->
                         <div class="carousel-slide">
-                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">เป้าหมายวันนี้
-                            </h2>
-                            <div class="flex justify-center items-baseline gap-2 mb-2">
-                                <span id="mission-current"
-                                    class="text-4xl font-extrabold tracking-tighter text-primary">0</span>
-                                <span class="text-xl text-gray-400 font-medium">/</span>
-                                <span id="mission-target" class="text-xl text-gray-400 font-medium">0</span>
+                            <div class="slide-header">
+                                <span class="slide-label">🎯 เป้าหมาย</span>
                             </div>
-                            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden mb-2">
-                                <div id="mission-progress-bar"
-                                    class="h-full bg-accent rounded-full transition-all duration-700 ease-out"
-                                    style="width:0%"></div>
+                            <div class="mission-numbers">
+                                <span class="mission-current" id="mission-current">0</span>
+                                <span class="mission-sep">/</span>
+                                <span class="mission-target" id="mission-target">0</span>
                             </div>
-                            <p id="mission-message"
-                                class="text-sm text-gray-600 min-h-[1.25rem] font-medium text-center animate-fade-in">
-                                เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪</p>
+                            <div class="progress-track">
+                                <div class="progress-fill" id="mission-progress-bar"></div>
+                            </div>
+                            <p id="mission-message" class="mission-msg">เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪</p>
                         </div>
 
-                        <!-- Slide 2: Product Pie Chart -->
+                        <!-- Slide 2: Pie -->
                         <div class="carousel-slide">
-                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">สัดส่วนยอดขาย
-                            </h2>
-                            <div class="chart-wrap">
-                                <canvas id="chart-pie"></canvas>
-                            </div>
+                            <div class="slide-header"><span class="slide-label">📊 สัดส่วนยอดขาย</span></div>
+                            <div class="chart-wrap"><canvas id="chart-pie"></canvas></div>
                         </div>
 
-                        <!-- Slide 3: Hourly Bar Chart -->
+                        <!-- Slide 3: Hourly -->
                         <div class="carousel-slide">
-                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">ยอดขายรายชั่วโมง
-                            </h2>
-                            <div class="chart-wrap">
-                                <canvas id="chart-hourly"></canvas>
-                            </div>
+                            <div class="slide-header"><span class="slide-label">⏰ รายชั่วโมง</span></div>
+                            <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
                         </div>
 
-                        <!-- Slide 4: Weekly Line Chart -->
+                        <!-- Slide 4: Weekly -->
                         <div class="carousel-slide">
-                            <h2 class="text-sm font-medium text-gray-500 mb-2 uppercase tracking-wide">ย้อนหลัง 7 วัน
-                            </h2>
-                            <div class="chart-wrap">
-                                <canvas id="chart-weekly"></canvas>
-                            </div>
+                            <div class="slide-header"><span class="slide-label">📈 ย้อนหลัง 7 วัน</span></div>
+                            <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
                         </div>
 
                     </div>
                 </div>
-                <!-- Dot Indicators -->
                 <div class="carousel-dots" id="carousel-dots">
                     <div class="carousel-dot active" data-idx="0"></div>
                     <div class="carousel-dot" data-idx="1"></div>
@@ -149,46 +112,28 @@
                 </div>
             </section>
 
-            <!-- Products Section -->
-            <section>
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800">สินค้า</h3>
-                    <button id="btn-add-product"
-                        class="text-sm font-medium text-accent hover:text-green-600 transition-colors flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
-                            </path>
-                        </svg>
-                        เพิ่มสินค้า
-                    </button>
+            <!-- Products -->
+            <section class="products-section">
+                <div class="section-header">
+                    <h2 class="section-title">สินค้า</h2>
+                    <button id="btn-add-product" class="add-btn">+ เพิ่มใหม่</button>
                 </div>
-
-                <!-- Product Grid -->
-                <div id="product-grid" class="grid grid-cols-3 gap-3">
-                    <!-- Products will be injected here by JS -->
+                <div id="product-grid" class="product-grid">
+                    <!-- JS injects here -->
                 </div>
             </section>
+
         </main>
 
-        <!-- Confetti Canvas -->
-        <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
-
-        <!-- Notification Toast Container -->
-        <div id="toast-container"
-            class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 items-center pointer-events-none w-full max-w-sm px-4">
-        </div>
-
+        <!-- Toast -->
+        <div id="toast-container" class="toast-container"></div>
     </div>
 
-    <!-- Modals to follow below in app.js injections or hidden divs -->
-    <div id="modals-container"></div>
-
-    <!-- Chart.js (lightweight charting) -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <!-- Confetti Library -->
+    <!-- Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- App Logic -->
-    <!-- PWA Script -->
+    <!-- PWA SW -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -198,6 +143,7 @@
             });
         }
     </script>
+    <!-- App -->
     <script src="./app.js"></script>
 </body>
 

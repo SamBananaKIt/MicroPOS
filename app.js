@@ -33,9 +33,15 @@ let chartHourly = null;
 let chartWeekly = null;
 
 const CHART_COLORS = [
-    '#0f3d2e', '#7ED957', '#3b82f6', '#f59e0b', '#ef4444',
+    '#7ED957', '#4ade80', '#3b82f6', '#f59e0b', '#ef4444',
     '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'
 ];
+
+// Chart.js dark theme defaults
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = 'rgba(255,255,255,0.45)';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+}
 
 const MOTIVATIONAL_MESSAGES = {
     0: ["เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪", "ออเดอร์แรกมาแล้ว! ลุยต่อเลย 🔥"],
@@ -281,16 +287,16 @@ function renderUI() {
 
     products.forEach(p => {
         const div = document.createElement('div');
-        div.className = "product-card bg-white rounded-2xl p-3 flex flex-col shadow-sm relative overflow-hidden group border border-gray-100";
+        div.className = 'product-card';
         div.dataset.productId = p.product_id;
 
         div.innerHTML = `
-            <div class="flex-1">
-                <p class="font-bold text-gray-900 text-sm mb-1 line-clamp-2 leading-tight">${p.name}</p>
-                <p class="text-sm font-black text-primary mb-3">฿${p.price}</p>
+            <div style="flex:1">
+                <p class="product-name">${p.name}</p>
+                <p class="product-price">฿${p.price}</p>
             </div>
-            <button class="sell-btn w-full bg-primary text-white rounded-xl py-3 font-bold text-base shadow-sm flex justify-center items-center gap-1" data-id="${p.product_id}">
-                <svg class="w-5 h-5 opacity-80" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+            <button class="sell-btn" data-id="${p.product_id}">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                 ขาย
             </button>
         `;
@@ -314,7 +320,7 @@ function updateKPIs(animate = true) {
         revEl.innerText = dailyState.total_revenue.toLocaleString();
         qtyEl.innerText = dailyState.total_qty.toLocaleString();
     }
-    streakEl.innerHTML = `<span class="text-sm">🔥</span>${dailyState.streak_count}`;
+    streakEl.innerText = `🔥 ${dailyState.streak_count}`;
 }
 
 let lastThreshold = -1;
@@ -498,13 +504,16 @@ function renderHourlyChart(todayTx) {
 
     if (chartHourly) chartHourly.destroy();
 
+    // Dark theme grid color
+    const gridColor = 'rgba(255,255,255,0.04)';
+
     chartHourly = new Chart(ctx, {
         type: 'bar',
         data: {
             labels,
             datasets: [{
                 data,
-                backgroundColor: '#0f3d2e',
+                backgroundColor: 'rgba(126, 217, 87, 0.6)',
                 borderRadius: 6,
                 barThickness: 12
             }]
@@ -518,7 +527,7 @@ function renderHourlyChart(todayTx) {
                     ticks: { font: { size: 9, family: 'Inter' }, maxRotation: 0 }
                 },
                 y: {
-                    grid: { color: '#f3f4f6' },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
                     ticks: { font: { size: 9, family: 'Inter' } },
                     beginAtZero: true
                 }
@@ -591,7 +600,7 @@ function renderWeeklyChart(allTx) {
                     ticks: { font: { size: 10, family: 'Inter' } }
                 },
                 y: {
-                    grid: { color: '#f3f4f6' },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
                     ticks: { font: { size: 9, family: 'Inter' } },
                     beginAtZero: true
                 }
@@ -712,7 +721,7 @@ function triggerConfetti() {
 function showToast(msg, type = "info") {
     const container = document.getElementById('toast-container');
     const el = document.createElement('div');
-    el.className = `px-4 py-2 rounded-lg shadow-lg text-sm text-white font-medium toast-anim ${type === 'error' ? 'bg-red-500' : 'bg-gray-800'}`;
+    el.className = `toast ${type === 'error' ? 'toast-error' : 'toast-info'}`;
     el.innerText = msg;
     container.appendChild(el);
     setTimeout(() => el.remove(), 3000);
