@@ -58,6 +58,7 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
+    transition: max-width 0.3s ease;
 }
 
 /* ===== Thin Top Bar ===== */
@@ -1139,4 +1140,221 @@ body {
 .btn-save:hover {
     box-shadow: 0 6px 16px var(--primary-glow);
     transform: translateY(-1px);
+}
+
+/* ==========================================================
+   RESPONSIVE DESIGN — 3 Breakpoint Adaptive Layout
+   Mobile (<768px)  |  iPad (768-1023px)  |  Desktop (≥1024px)
+   ========================================================== */
+
+/* --- iPad Breakpoint (768px+) --- */
+@media (min-width: 768px) {
+    #app {
+        max-width: 720px;
+        padding: 0 var(--sp-lg);
+    }
+
+    .top-bar {
+        padding: 24px var(--sp-xl) 16px;
+    }
+
+    .shop-name {
+        font-size: 24px;
+    }
+
+    /* KPI Cards — bigger on iPad */
+    .kpi-row {
+        gap: var(--sp-lg);
+    }
+
+    .kpi-value {
+        font-size: 28px;
+    }
+
+    /* Product Grid — scale circles up, more per row */
+    .product-grid {
+        gap: 28px 28px;
+    }
+
+    .product-circle-wrap {
+        width: 100px;
+        height: 100px;
+    }
+
+    .activity-ring {
+        width: 100px;
+        height: 100px;
+    }
+
+    .product-circle {
+        width: 82px;
+        height: 82px;
+    }
+
+    .product-circle .emoji-fallback {
+        font-size: 38px;
+    }
+
+    .product-name {
+        font-size: 12px;
+    }
+
+    /* Analytics Carousel — taller charts */
+    .carousel-slide {
+        min-height: 200px;
+    }
+
+    .chart-wrap {
+        height: 165px;
+    }
+
+    /* Ranking Section */
+    .ranking-section {
+        margin-top: var(--sp-lg);
+    }
+
+    /* Mission numbers bigger */
+    .mission-current {
+        font-size: 52px;
+    }
+
+    /* Modal wider on iPad */
+    .modal-content {
+        max-width: 480px;
+    }
+}
+
+/* --- Desktop Breakpoint (1024px+) --- */
+@media (min-width: 1024px) {
+    #app {
+        max-width: 1024px;
+        padding: 0 var(--sp-2xl);
+    }
+
+    .top-bar {
+        padding: 28px var(--sp-2xl) 18px;
+    }
+
+    .shop-name {
+        font-size: 26px;
+    }
+
+    /* Main content becomes 2-column grid */
+    .app-main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+        gap: var(--sp-xl);
+        align-items: start;
+    }
+
+    /* Top ticker spans full width */
+    .top-ticker {
+        grid-column: 1 / -1;
+    }
+
+    /* Products take left column */
+    .app-main>section:nth-child(3) {
+        grid-column: 1;
+        grid-row: 2 / 4;
+    }
+
+    /* Analytics carousel takes right column top */
+    .analytics-card {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    /* Ranking takes right column bottom */
+    .ranking-section {
+        grid-column: 2;
+        grid-row: 3;
+        margin-top: 0;
+    }
+
+    /* Product Grid — even bigger circles */
+    .product-grid {
+        gap: 30px 30px;
+        justify-content: flex-start;
+    }
+
+    .product-circle-wrap {
+        width: 104px;
+        height: 104px;
+    }
+
+    .activity-ring {
+        width: 104px;
+        height: 104px;
+    }
+
+    .product-circle {
+        width: 86px;
+        height: 86px;
+    }
+
+    .product-circle .emoji-fallback {
+        font-size: 40px;
+    }
+
+    /* Carousel — no peek needed, show full cards */
+    .carousel-slide {
+        flex: 0 0 100%;
+        min-height: 220px;
+    }
+
+    .chart-wrap {
+        height: 180px;
+    }
+
+    /* Analytics card no edge fade on desktop */
+    .carousel-container::after {
+        display: none;
+    }
+
+    /* KPI — stretch nicely */
+    .kpi-row {
+        padding: 0 0 var(--sp-lg);
+        gap: var(--sp-xl);
+    }
+
+    .kpi-card {
+        padding: var(--sp-lg) var(--sp-md);
+    }
+
+    .kpi-value {
+        font-size: 32px;
+    }
+
+    /* Modal wider on desktop */
+    .modal-content {
+        max-width: 520px;
+    }
+
+    /* Toast wider */
+    .toast-container {
+        max-width: 480px;
+    }
+}
+
+/* --- Wide Desktop (1280px+) — extra breathing room --- */
+@media (min-width: 1280px) {
+    #app {
+        max-width: 1120px;
+    }
+
+    .product-circle-wrap {
+        width: 110px;
+        height: 110px;
+    }
+
+    .activity-ring {
+        width: 110px;
+        height: 110px;
+    }
+
+    .product-circle {
+        width: 90px;
+        height: 90px;
+    }
 }
