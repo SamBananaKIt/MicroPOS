@@ -577,8 +577,8 @@ body {
 /* Hot rank badge */
 .hot-badge {
     position: absolute;
-    bottom: -20px;
-    /* Overlaps price but breathes better */
+    top: -12px;
+    /* Moved to top to avoid confusion with row below */
     left: 50%;
     transform: translateX(-50%);
     background: linear-gradient(135deg, var(--primary), var(--accent-warm));
