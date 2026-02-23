@@ -1142,6 +1142,85 @@ body {
     transform: translateY(-1px);
 }
 
+/* ===== Settings Modal ===== */
+.settings-modal-content {
+    max-width: 400px;
+}
+
+.settings-toggle-row {
+    display: flex;
+    gap: 8px;
+}
+
+.settings-toggle {
+    flex: 1;
+    padding: 10px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--card-border);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.settings-toggle.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+    color: #FFFFFF;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px var(--primary-shadow);
+}
+
+.settings-divider {
+    height: 1px;
+    background: var(--card-border);
+    margin: 16px 0;
+}
+
+.settings-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.settings-action-btn {
+    padding: 12px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--card-border);
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+}
+
+.settings-action-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.settings-action-btn.settings-danger {
+    grid-column: 1 / -1;
+    color: #EF4444;
+    border-color: rgba(239, 68, 68, 0.15);
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.settings-action-btn.settings-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #EF4444;
+}
+
 /* ==========================================================
    RESPONSIVE DESIGN — 3 Breakpoint Adaptive Layout
    Mobile (<768px)  |  iPad (768-1023px)  |  Desktop (≥1024px)

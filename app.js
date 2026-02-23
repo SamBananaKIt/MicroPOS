@@ -945,7 +945,24 @@ function attachEvents() {
         if (item && item.dataset.productId) openProductModal(item.dataset.productId);
     });
 
-    document.getElementById('btn-settings').addEventListener('click', toggleEditMode);
+    // Gear button: tap = Settings, long-press = Edit Mode
+    let gearLongPress = null;
+    let gearTriggered = false;
+    const gearBtn = document.getElementById('btn-settings');
+
+    gearBtn.addEventListener('pointerdown', () => {
+        gearTriggered = false;
+        gearLongPress = setTimeout(() => {
+            gearTriggered = true;
+            toggleEditMode();
+        }, 500);
+    });
+    gearBtn.addEventListener('pointerup', () => {
+        clearTimeout(gearLongPress);
+        if (!gearTriggered) openSettingsModal();
+    });
+    gearBtn.addEventListener('pointerleave', () => clearTimeout(gearLongPress));
+
     const addBtn = document.getElementById('btn-add-product');
     if (addBtn) addBtn.addEventListener('click', () => openProductModal());
     const editAddBtn = document.getElementById('edit-add-product');
@@ -953,7 +970,7 @@ function attachEvents() {
     const editDone = document.getElementById('edit-done');
     if (editDone) editDone.addEventListener('click', toggleEditMode);
 
-    // Modal Events
+    // Product Modal Events
     const modalCancelBtn = document.getElementById('btn-modal-cancel');
     if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeProductModal);
     const modalSaveBtn = document.getElementById('btn-modal-save');
@@ -962,6 +979,116 @@ function attachEvents() {
     if (modalDeleteBtn) modalDeleteBtn.addEventListener('click', deleteProductModal);
     const modalImgUpload = document.getElementById('modal-img-upload');
     if (modalImgUpload) modalImgUpload.addEventListener('click', triggerModalImageUpload);
+
+    // Settings Modal Events
+    document.getElementById('btn-settings-cancel')?.addEventListener('click', closeSettingsModal);
+    document.getElementById('btn-settings-save')?.addEventListener('click', saveSettings);
+    document.getElementById('btn-export-data')?.addEventListener('click', exportData);
+    document.getElementById('btn-import-data')?.addEventListener('click', importData);
+    document.getElementById('btn-reset-today')?.addEventListener('click', resetToday);
+
+    // Goal mode toggles
+    document.getElementById('settings-mode-revenue')?.addEventListener('click', () => {
+        document.getElementById('settings-mode-revenue').classList.add('active');
+        document.getElementById('settings-mode-qty').classList.remove('active');
+    });
+    document.getElementById('settings-mode-qty')?.addEventListener('click', () => {
+        document.getElementById('settings-mode-qty').classList.add('active');
+        document.getElementById('settings-mode-revenue').classList.remove('active');
+    });
+}
+
+// --- SETTINGS MODAL ---
+function openSettingsModal() {
+    const modal = document.getElementById('settings-modal');
+    document.getElementById('settings-shop-name').value = profile.shop_name;
+    document.getElementById('settings-goal-value').value = dailyState.goal_value;
+    const isRevenue = profile.settings.daily_goal_mode === 'revenue';
+    document.getElementById('settings-mode-revenue').classList.toggle('active', isRevenue);
+    document.getElementById('settings-mode-qty').classList.toggle('active', !isRevenue);
+    modal.style.display = 'flex';
+}
+
+function closeSettingsModal() {
+    document.getElementById('settings-modal').style.display = 'none';
+}
+
+async function saveSettings() {
+    const shopName = document.getElementById('settings-shop-name').value.trim();
+    const goalValue = parseInt(document.getElementById('settings-goal-value').value);
+    const isRevenue = document.getElementById('settings-mode-revenue').classList.contains('active');
+
+    if (shopName) profile.shop_name = shopName;
+    profile.settings.daily_goal_mode = isRevenue ? 'revenue' : 'qty';
+    await idbOp('profile', 'readwrite', s => s.put(profile));
+
+    if (!isNaN(goalValue) && goalValue > 0) {
+        dailyState.goal_value = goalValue;
+        dailyState.goal_progress = isRevenue ? dailyState.total_revenue : dailyState.total_qty;
+        await idbOp('dailyRecords', 'readwrite', s => s.put(dailyState));
+        syncLocalCache();
+    }
+
+    document.getElementById('shop-name-display').textContent = profile.shop_name;
+    updateMissionUI();
+    closeSettingsModal();
+    showToast("บันทึกการตั้งค่าแล้ว ✅");
+}
+
+// --- DATA EXPORT / IMPORT ---
+async function exportData() {
+    try {
+        const txs = await idbOp('transactions', 'readonly', s => s.getAll());
+        const prods = await idbOp('products', 'readonly', s => s.getAll());
+        const dailyRecords = await idbOp('dailyRecords', 'readonly', s => s.getAll());
+        const exportObj = {
+            exported_at: new Date().toISOString(),
+            profile, products: prods, daily_records: dailyRecords, transactions: txs
+        };
+        const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: "application/json" });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `micropos-backup-${todayStr}.json`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        showToast(`ส่งออกสำเร็จ! (${txs.length} รายการ) 📤`);
+    } catch (e) { console.error("Export failed:", e); showToast("ส่งออกล้มเหลว", "error"); }
+}
+
+function importData() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json';
+    input.addEventListener('change', async () => {
+        if (!input.files[0]) return;
+        try {
+            const data = JSON.parse(await input.files[0].text());
+            if (!data.transactions || !data.products) { showToast("ไฟล์ไม่ถูกต้อง", "error"); return; }
+            if (!confirm(`นำเข้า ${data.transactions.length} รายการขาย + ${data.products.length} สินค้า?\n\n⚠️ ข้อมูลเก่าจะถูกแทนที่`)) return;
+            for (const prod of data.products) await idbOp('products', 'readwrite', s => s.put(prod));
+            for (const tx of data.transactions) await idbOp('transactions', 'readwrite', s => s.put(tx));
+            if (data.daily_records) for (const dr of data.daily_records) await idbOp('dailyRecords', 'readwrite', s => s.put(dr));
+            if (data.profile) { profile = data.profile; await idbOp('profile', 'readwrite', s => s.put(profile)); }
+            await loadProducts(); await loadTodaySalesData(); await initDailyState();
+            renderUI(); renderCharts(); closeSettingsModal();
+            showToast("นำเข้าสำเร็จ! 📥");
+        } catch (e) { console.error("Import failed:", e); showToast("นำเข้าล้มเหลว", "error"); }
+        input.remove();
+    });
+    document.body.appendChild(input); input.click();
+}
+
+async function resetToday() {
+    if (!confirm("⚠️ รีเซ็ตยอดขายวันนี้ทั้งหมด?\n\nข้อมูลจะถูกลบถาวร")) return;
+    try {
+        const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
+        for (const tx of allTx.filter(t => t.date === todayStr)) await idbOp('transactions', 'readwrite', s => s.delete(tx.tx_id));
+        dailyState.total_qty = 0; dailyState.total_revenue = 0; dailyState.total_cost = 0;
+        dailyState.total_profit = 0; dailyState.goal_progress = 0;
+        await idbOp('dailyRecords', 'readwrite', s => s.put(dailyState)); syncLocalCache();
+        todaySalesByProduct = {};
+        renderUI(); renderCharts(); closeSettingsModal();
+        showToast("รีเซ็ตยอดวันนี้เรียบร้อย 🗑️");
+    } catch (e) { console.error("Reset failed:", e); showToast("รีเซ็ตล้มเหลว", "error"); }
 }
 
 // --- HELPERS ---
@@ -983,27 +1110,11 @@ function showToast(msg, type = "info", showUndo = false) {
     const c = document.getElementById('toast-container');
     const el = document.createElement('div');
     el.className = `toast ${type === 'error' ? 'toast-error' : 'toast-info'} ${showUndo ? 'toast-undo' : ''}`;
-
     if (showUndo) {
         el.innerHTML = `<span>${msg}</span> <button class="undo-btn" onclick="undoLastSale()">ย้อนกลับ ↩️</button>`;
-    } else {
-        el.innerText = msg;
-    }
-
+    } else { el.innerText = msg; }
     c.appendChild(el);
     const timeout = setTimeout(() => el.remove(), showUndo ? 7000 : 3000);
     if (showUndo) undoTimeout = timeout;
 }
 
-
-async function exportData() {
-    try {
-        const txs = await idbOp('transactions', 'readonly', s => s.getAll());
-        const blob = new Blob([JSON.stringify(txs, null, 2)], { type: "application/json" });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `micropos-export-${todayStr}.json`;
-        link.click();
-        showToast("ส่งออกสำเร็จ!");
-    } catch (e) { showToast("ส่งออกล้มเหลว", "error"); }
-}
