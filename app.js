@@ -18,8 +18,8 @@ const PRODUCT_EMOJIS = ['🍉', '☕', '🧋', '🥤', '🍊', '🥐', '🍜', '
 const CHART_COLORS = ['#00B3C6', '#4C9AFF', '#8FD3F4', '#9BADB6'];
 
 if (typeof Chart !== 'undefined') {
-    Chart.defaults.color = 'rgba(255,255,255,0.4)';
-    Chart.defaults.borderColor = 'rgba(255,255,255,0.04)';
+    Chart.defaults.color = '#9CA3AF';
+    Chart.defaults.borderColor = 'rgba(0, 50, 80, 0.05)';
 }
 
 const MOTIVATIONAL_MESSAGES = {

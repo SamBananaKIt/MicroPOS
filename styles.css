@@ -199,7 +199,7 @@ body {
     border: 1px solid var(--card-border);
     border-radius: var(--r-xl);
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 50, 80, 0.06);
 }
 
 .carousel-container {
@@ -565,7 +565,7 @@ body {
     justify-content: center;
     padding: 0 5px;
     z-index: 5;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 6px rgba(0, 50, 80, 0.1);
 }
 
 .product-item.hot .sale-count {
@@ -600,7 +600,7 @@ body {
     border: 1px solid var(--card-border);
     border-radius: var(--r-xl);
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 50, 80, 0.06);
 }
 
 .ranking-header {
@@ -1222,6 +1222,11 @@ body {
     .modal-content {
         max-width: 480px;
     }
+
+    /* Edit bar matches iPad width */
+    .edit-bar {
+        max-width: 720px;
+    }
 }
 
 /* --- Desktop Breakpoint (1024px+) --- */
@@ -1334,6 +1339,11 @@ body {
     /* Toast wider */
     .toast-container {
         max-width: 480px;
+    }
+
+    /* Edit bar matches Desktop width */
+    .edit-bar {
+        max-width: 1024px;
     }
 }
 
