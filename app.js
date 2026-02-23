@@ -278,6 +278,8 @@ function renderProductGrid() {
         const item = document.createElement('div');
         item.className = 'product-item';
         item.dataset.productId = p.product_id;
+        item.setAttribute('role', 'listitem');
+        item.setAttribute('aria-label', `${p.name} ราคา ${p.price} บาท`);
 
         let circleInner;
         if (p.image) {

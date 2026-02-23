@@ -1221,6 +1221,39 @@ body {
     border-color: #EF4444;
 }
 
+/* ===== SW Update Banner ===== */
+.sw-update-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+    color: #FFFFFF;
+    padding: 12px 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 16px var(--primary-glow);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
 /* ==========================================================
    RESPONSIVE DESIGN — 3 Breakpoint Adaptive Layout
    Mobile (<768px)  |  iPad (768-1023px)  |  Desktop (≥1024px)
