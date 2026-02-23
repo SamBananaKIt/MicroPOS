@@ -236,23 +236,22 @@ async function sellProduct(productId, btnEl) {
 
 // --- 5. UI & EFFECTS ---
 function renderUI() {
-    document.getElementById('shop-name-display').textContent = profile.shop_name;
-
     // Render Products
     const grid = document.getElementById('product-grid');
     grid.innerHTML = '';
 
     products.forEach(p => {
         const div = document.createElement('div');
-        div.className = "bg-white border border-gray-100 rounded-xl p-3 flex flex-col items-center shadow-sm relative";
+        div.className = "product-card bg-white rounded-2xl p-3 flex flex-col shadow-sm relative overflow-hidden group border border-gray-100";
+
+        // Large, bold, depthy product item
         div.innerHTML = `
-            <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-2 font-bold text-xl text-primary/30">
-                ${p.name.substring(0, 2)}
+            <div class="flex-1">
+                <p class="font-bold text-gray-900 text-base mb-1 line-clamp-2 leading-tight">${p.name}</p>
+                <p class="text-sm font-black text-primary mb-3">฿${p.price}</p>
             </div>
-            <p class="font-medium text-gray-800 text-sm mb-1 text-center line-clamp-1">${p.name}</p>
-            <p class="text-xs text-green-600 font-bold mb-3">฿${p.price}</p>
-            <button class="w-full bg-primary text-white rounded-lg py-2 font-semibold text-sm ripple-btn btn-scale shadow-sm flex justify-center items-center gap-1" data-id="${p.product_id}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            <button class="sell-btn w-full bg-primary hover:bg-dark text-white rounded-xl py-3 font-bold text-base shadow-[0_4px_14px_0_rgba(27,94,66,0.39)] flex justify-center items-center gap-1 active:scale-95" data-id="${p.product_id}">
+                <svg class="w-5 h-5 opacity-80" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                 ขาย
             </button>
         `;
@@ -270,28 +269,45 @@ function updateKPIs(animate = true) {
 
     if (animate) {
         animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 400);
-        animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '')), dailyState.total_qty, 400);
+        qtyEl.innerText = dailyState.total_qty.toLocaleString();
     } else {
         revEl.innerText = dailyState.total_revenue.toLocaleString();
         qtyEl.innerText = dailyState.total_qty.toLocaleString();
     }
-    streakEl.innerHTML = `<span class="text-sm">🔥</span>${dailyState.streak_count}`;
+    streakEl.innerText = `🔥 ${dailyState.streak_count}`;
 }
 
 let lastThreshold = -1;
 function updateMissionUI(animate = true) {
     const curEl = document.getElementById('mission-current');
-    document.getElementById('mission-target').innerText = dailyState.goal_value.toLocaleString() + (profile.settings.daily_goal_mode === 'revenue' ? '฿' : '');
+    const targetEl = document.getElementById('mission-target');
+    const pctEl = document.getElementById('mission-pct');
+    const ring = document.getElementById('mission-ring');
 
-    if (animate) {
-        animateValue(curEl, Number(curEl.innerText.replace(/,/g, '').replace('฿', '')), dailyState.goal_progress, 600);
-    } else {
-        curEl.innerText = dailyState.goal_progress.toLocaleString();
+    // Ensure DOM exists (for modal/ring architecture)
+    if (curEl) curEl.innerText = dailyState.goal_progress.toLocaleString();
+    if (targetEl) targetEl.innerText = dailyState.goal_value.toLocaleString() + (profile.settings.daily_goal_mode === 'revenue' ? '฿' : '');
+
+    // Ring logic
+    const circumference = 2 * Math.PI * 20; // 125.6
+    let pctRaw = dailyState.goal_progress / dailyState.goal_value;
+    let pct = Math.min(pctRaw * 100, 100);
+
+    if (pctEl) pctEl.innerText = `${Math.floor(pct)}%`;
+
+    if (ring) {
+        const offset = circumference - (pctRaw * circumference);
+        ring.style.strokeDashoffset = Math.max(0, offset);
+
+        // Add glow if > 90%
+        if (pct >= 90) {
+            ring.classList.add('glow-active');
+            ring.setAttribute('stroke', '#a3e635'); // Brighter lime
+        } else {
+            ring.classList.remove('glow-active');
+            ring.setAttribute('stroke', '#7ED957'); // Standard secondary
+        }
     }
-
-    // Progress bar
-    let pct = Math.min((dailyState.goal_progress / dailyState.goal_value) * 100, 100);
-    document.getElementById('mission-progress-bar').style.width = `${pct}%`;
 
     // Motivation Check
     const thresholds = [0, 10, 25, 50, 75, 90, 100].reverse();
@@ -303,12 +319,15 @@ function updateMissionUI(animate = true) {
         const msg = msgs[Math.floor(Math.random() * msgs.length)];
 
         const msgEl = document.getElementById('mission-message');
-        msgEl.innerText = msg;
+        if (msgEl) {
+            msgEl.innerText = msg;
+            msgEl.style.opacity = '1';
 
-        // Re-trigger fade
-        msgEl.classList.remove('animate-fade-in');
-        void msgEl.offsetWidth;
-        msgEl.classList.add('animate-fade-in');
+            // Auto fade out message after 3 seconds
+            setTimeout(() => {
+                msgEl.style.opacity = '0';
+            }, 3000);
+        }
 
         if (hit === 100 && animate) {
             triggerConfetti();
@@ -319,7 +338,7 @@ function updateMissionUI(animate = true) {
 // Helpers
 function attachEvents() {
     document.getElementById('product-grid').addEventListener('click', e => {
-        const btn = e.target.closest('button');
+        const btn = e.target.closest('.sell-btn');
         if (btn && btn.dataset.id) {
             sellProduct(btn.dataset.id, btn);
         }
@@ -329,28 +348,28 @@ function attachEvents() {
         await exportData();
     });
 
-    document.getElementById('btn-add-product').addEventListener('click', () => {
-        promptAddProduct();
-    });
+    const addBtn = document.getElementById('btn-add-product');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            promptAddProduct();
+        });
+    }
 }
 
 function playMicroAnimations(btn) {
-    // Add ripple
-    const circle = document.createElement('span');
-    const diameter = Math.max(btn.clientWidth, btn.clientHeight);
-    const radius = diameter / 2;
-    circle.style.width = circle.style.height = `${diameter}px`;
-    circle.style.left = `${btn.clientWidth / 2 - radius}px`;
-    circle.style.top = `${btn.clientHeight / 2 - radius}px`;
-    circle.className = 'absolute rounded-full bg-white/40 scale-0 animate-[ripple_400ms_ease-out]';
-    btn.appendChild(circle);
-    setTimeout(() => circle.remove(), 400);
-
     // Number pop on KPI
     const revEl = document.getElementById('kpi-revenue');
-    revEl.classList.remove('animate-count-up');
-    void revEl.offsetWidth;
-    revEl.classList.add('animate-count-up');
+    if (revEl) {
+        // Force reflow to restart animation
+        revEl.classList.remove('kpi-bounce');
+        void revEl.offsetWidth;
+        revEl.classList.add('kpi-bounce');
+    }
+
+    // Quick vibration if mobile supports it
+    if (navigator.vibrate) {
+        navigator.vibrate(50);
+    }
 }
 
 function animateValue(obj, start, end, duration) {
