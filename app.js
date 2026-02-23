@@ -140,10 +140,82 @@ async function loadTodaySalesData() {
     } catch (e) { console.error("Sales load failed:", e); }
 }
 
-// --- SELL ---
+// --- SELL & UNDO ---
+let lastTransactionIds = []; // Track IDs of the most recent sale batch
+let undoTimeout = null;
+
+async function undoLastSale() {
+    if (!lastTransactionIds.length) return;
+
+    // Clear toast immediately
+    const toastContainer = document.getElementById('toast-container');
+    if (toastContainer) toastContainer.innerHTML = '';
+
+    try {
+        const idbTx = db.transaction(['transactions', 'dailyRecords'], 'readwrite');
+        const txStore = idbTx.objectStore('transactions');
+
+        let removedQty = 0;
+        let removedRev = 0;
+        let removedCost = 0;
+        let removedProfit = 0;
+        let productId = null;
+
+        for (const tid of lastTransactionIds) {
+            const req = txStore.get(tid);
+            req.onsuccess = (e) => {
+                const txRecord = e.target.result;
+                if (txRecord) {
+                    productId = txRecord.product_id;
+                    removedQty += 1;
+                    removedRev += txRecord.total_revenue;
+                    removedCost += txRecord.total_cost;
+                    removedProfit += txRecord.profit;
+                    txStore.delete(tid);
+                }
+            };
+        }
+
+        idbTx.oncomplete = async () => {
+            if (!removedQty) return;
+
+            dailyState.total_qty -= removedQty;
+            dailyState.total_revenue -= removedRev;
+            dailyState.total_cost -= removedCost;
+            dailyState.total_profit -= removedProfit;
+            dailyState.goal_progress = profile.settings.daily_goal_mode === 'revenue' ? dailyState.total_revenue : dailyState.total_qty;
+
+            if (productId && todaySalesByProduct[productId]) {
+                todaySalesByProduct[productId].count = Math.max(0, todaySalesByProduct[productId].count - removedQty);
+                todaySalesByProduct[productId].revenue = Math.max(0, todaySalesByProduct[productId].revenue - removedRev);
+            }
+
+            await idbOp('dailyRecords', 'readwrite', s => s.put(dailyState));
+
+            // Re-render everything from fresh DB fetch to accurately update charts
+            lastTransactionIds = [];
+            await loadProducts(); // Re-calculates todaySalesByProduct properly from DB
+            renderProductGrid();
+            if (!editMode) applyPopularityScaling();
+            updateKPIs();
+            updateMissionUI();
+            updateTopTicker();
+            updateLiveRanking();
+            renderCharts();
+
+            showToast("ยกเลิกรายการสำเร็จ ↩️");
+        };
+    } catch (e) {
+        console.error("Undo failed", e);
+    }
+}
+
 async function sellProduct(productId, qty = 1) {
     const prod = products.find(p => p.product_id === productId);
     if (!prod) return;
+
+    if (undoTimeout) clearTimeout(undoTimeout);
+    lastTransactionIds = [];
 
     for (let i = 0; i < qty; i++) {
         const tx = { tx_id: generateId(), product_id: prod.product_id, quantity: 1, unit_price: Number(prod.price), unit_cost: Number(prod.cost), total_revenue: Number(prod.price), total_cost: Number(prod.cost), profit: Number(prod.price) - Number(prod.cost), timestamp: new Date().toISOString(), date: todayStr };
@@ -162,6 +234,7 @@ async function sellProduct(productId, qty = 1) {
             const idbTx = db.transaction(['transactions', 'dailyRecords'], 'readwrite');
             idbTx.objectStore('transactions').add(tx);
             idbTx.objectStore('dailyRecords').put(dailyState);
+            lastTransactionIds.push(tx.tx_id);
         } catch (e) { console.error("DB write failed", e); }
 
         updateChartsOnSale(tx);
@@ -173,7 +246,7 @@ async function sellProduct(productId, qty = 1) {
     applyPopularityScaling();
     updateTopTicker();
     updateLiveRanking();
-    showToast(`${prod.name} x${qty} ✓`);
+    showToast(`${prod.name} x${qty} ✓`, "success", true);
     if (navigator.vibrate) navigator.vibrate(40);
 
     // Bounce KPI
@@ -906,13 +979,20 @@ function animateValue(obj, start, end, duration) {
 
 function triggerConfetti() { if (typeof confetti === 'function') confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } }); }
 
-function showToast(msg, type = "info") {
+function showToast(msg, type = "info", showUndo = false) {
     const c = document.getElementById('toast-container');
     const el = document.createElement('div');
-    el.className = `toast ${type === 'error' ? 'toast-error' : 'toast-info'}`;
-    el.innerText = msg;
+    el.className = `toast ${type === 'error' ? 'toast-error' : 'toast-info'} ${showUndo ? 'toast-undo' : ''}`;
+
+    if (showUndo) {
+        el.innerHTML = `<span>${msg}</span> <button class="undo-btn" onclick="undoLastSale()">ย้อนกลับ ↩️</button>`;
+    } else {
+        el.innerText = msg;
+    }
+
     c.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+    const timeout = setTimeout(() => el.remove(), showUndo ? 4000 : 3000);
+    if (showUndo) undoTimeout = timeout;
 }
 
 

@@ -887,6 +887,31 @@ body {
     color: white;
     backdrop-filter: blur(12px);
     animation: toastSlide 3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: auto;
+    /* Allow clicking undo button */
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toast.toast-undo {
+    animation: toastSlide 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.undo-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #FFF;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.undo-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .toast-info {
