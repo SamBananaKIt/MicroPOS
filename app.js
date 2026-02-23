@@ -583,38 +583,118 @@ function toggleEditMode() {
     if (!editMode) applyPopularityScaling();
 }
 
-async function editProduct(productId) {
-    const prod = products.find(p => p.product_id === productId);
+// --- PRODUCT MODAL (ADD & EDIT) ---
+let modalProductId = null;
+let modalImageBase64 = null;
+
+function openProductModal(productId = null) {
+    modalProductId = productId;
+    const modal = document.getElementById('product-modal');
+    const title = document.getElementById('modal-title');
+    const nameInput = document.getElementById('modal-input-name');
+    const priceInput = document.getElementById('modal-input-price');
+    const costInput = document.getElementById('modal-input-cost');
+    const imgPreview = document.getElementById('modal-img-preview');
+    const deleteBtn = document.getElementById('btn-modal-delete');
+
+    if (productId) {
+        const prod = products.find(p => p.product_id === productId);
+        if (!prod) return;
+        title.innerText = "แก้ไขสินค้า";
+        nameInput.value = prod.name;
+        priceInput.value = prod.price;
+        costInput.value = prod.cost || '';
+        modalImageBase64 = prod.image || null;
+        if (prod.image) {
+            imgPreview.innerHTML = `<img src="${prod.image}">`;
+        } else {
+            imgPreview.innerHTML = prod.emoji || '📷';
+        }
+        deleteBtn.style.display = 'block';
+    } else {
+        title.innerText = "เพิ่มสินค้าใหม่";
+        nameInput.value = '';
+        priceInput.value = '';
+        costInput.value = '';
+        modalImageBase64 = null;
+        imgPreview.innerHTML = '📷';
+        deleteBtn.style.display = 'none';
+    }
+
+    modal.style.display = 'flex';
+    nameInput.focus();
+}
+
+function closeProductModal() {
+    document.getElementById('product-modal').style.display = 'none';
+}
+
+async function saveProductModal() {
+    const name = document.getElementById('modal-input-name').value.trim();
+    const price = parseFloat(document.getElementById('modal-input-price').value);
+    const cost = parseFloat(document.getElementById('modal-input-cost').value) || 0;
+
+    if (!name || isNaN(price)) {
+        showToast("กรุณากรอกชื่อและราคาให้ครบ", "error");
+        return;
+    }
+
+    if (modalProductId) {
+        const prod = products.find(p => p.product_id === modalProductId);
+        if (prod) {
+            prod.name = name;
+            prod.price = price;
+            prod.cost = cost;
+            prod.image = modalImageBase64;
+            await idbOp('products', 'readwrite', s => s.put(prod));
+            showToast("อัปเดตสำเร็จ ✅");
+        }
+    } else {
+        const newId = generateId();
+        const emoji = PRODUCT_EMOJIS[products.length % PRODUCT_EMOJIS.length];
+        await idbOp('products', 'readwrite', s => s.put({
+            product_id: newId, name, price, cost, emoji, image: modalImageBase64, is_active: true
+        }));
+        showToast("เพิ่มสินค้าแล้ว ✅");
+    }
+
+    closeProductModal();
+    await loadProducts();
+    renderProductGrid();
+    if (!editMode) applyPopularityScaling();
+    renderCharts();
+}
+
+async function deleteProductModal() {
+    if (!modalProductId) return;
+    const prod = products.find(p => p.product_id === modalProductId);
     if (!prod) return;
 
-    const action = prompt("เลือก:\n1 = แก้ชื่อ/ราคา\n2 = เปลี่ยนรูป\n3 = เปลี่ยน Emoji\n4 = ลบสินค้า", "1");
-    if (action === null) return;
-
-    if (action === '1') {
-        const name = prompt("ชื่อสินค้า:", prod.name);
-        if (name === null) return;
-        const price = parseFloat(prompt("ราคาขาย:", prod.price));
-        if (isNaN(price)) return;
-        const cost = parseFloat(prompt("ต้นทุน:", prod.cost) || prod.cost);
-        prod.name = name; prod.price = price; prod.cost = cost;
+    if (confirm(`คุณแน่ใจหรือไม่ที่จะลบ "${prod.name}" ?`)) {
+        prod.is_active = false;
         await idbOp('products', 'readwrite', s => s.put(prod));
+        closeProductModal();
         await loadProducts();
         renderProductGrid();
-        showToast("อัปเดตแล้ว ✅");
-    } else if (action === '2') {
-        triggerImageUpload(productId);
-    } else if (action === '3') {
-        const emoji = prompt("Emoji ใหม่:", prod.emoji || '🍉');
-        if (emoji) { prod.emoji = emoji; prod.image = null; await idbOp('products', 'readwrite', s => s.put(prod)); await loadProducts(); renderProductGrid(); showToast("เปลี่ยน Emoji แล้ว ✅"); }
-    } else if (action === '4') {
-        if (confirm(`ลบ "${prod.name}" ?`)) {
-            prod.is_active = false;
-            await idbOp('products', 'readwrite', s => s.put(prod));
-            await loadProducts();
-            renderProductGrid();
-            showToast("ลบสินค้าแล้ว");
-        }
+        showToast("ลบสินค้าแล้ว");
     }
+}
+
+// Attach image uploader to modal
+function triggerModalImageUpload() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.className = 'hidden-input';
+    input.addEventListener('change', async () => {
+        if (!input.files[0]) return;
+        const base64 = await compressImage(input.files[0]);
+        modalImageBase64 = base64;
+        document.getElementById('modal-img-preview').innerHTML = `<img src="${base64}">`;
+        input.remove();
+    });
+    document.body.appendChild(input);
+    input.click();
 }
 
 // --- EVENTS ---
@@ -663,16 +743,26 @@ function attachEvents() {
     grid.addEventListener('click', (e) => {
         if (!editMode) return;
         const item = e.target.closest('.product-item');
-        if (item && item.dataset.productId) editProduct(item.dataset.productId);
+        if (item && item.dataset.productId) openProductModal(item.dataset.productId);
     });
 
     document.getElementById('btn-settings').addEventListener('click', toggleEditMode);
     const addBtn = document.getElementById('btn-add-product');
-    if (addBtn) addBtn.addEventListener('click', () => promptAddProduct());
+    if (addBtn) addBtn.addEventListener('click', () => openProductModal());
     const editAddBtn = document.getElementById('edit-add-product');
-    if (editAddBtn) editAddBtn.addEventListener('click', () => promptAddProduct());
+    if (editAddBtn) editAddBtn.addEventListener('click', () => openProductModal());
     const editDone = document.getElementById('edit-done');
     if (editDone) editDone.addEventListener('click', toggleEditMode);
+
+    // Modal Events
+    const modalCancelBtn = document.getElementById('btn-modal-cancel');
+    if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeProductModal);
+    const modalSaveBtn = document.getElementById('btn-modal-save');
+    if (modalSaveBtn) modalSaveBtn.addEventListener('click', saveProductModal);
+    const modalDeleteBtn = document.getElementById('btn-modal-delete');
+    if (modalDeleteBtn) modalDeleteBtn.addEventListener('click', deleteProductModal);
+    const modalImgUpload = document.getElementById('modal-img-upload');
+    if (modalImgUpload) modalImgUpload.addEventListener('click', triggerModalImageUpload);
 }
 
 // --- HELPERS ---
@@ -699,25 +789,6 @@ function showToast(msg, type = "info") {
     setTimeout(() => el.remove(), 3000);
 }
 
-async function promptAddProduct() {
-    const name = prompt("ชื่อสินค้า:");
-    if (!name) return;
-    const price = parseFloat(prompt("ราคาขาย:"));
-    if (isNaN(price)) return;
-    const cost = parseFloat(prompt("ต้นทุน:") || 0);
-    const emoji = prompt("Emoji สินค้า:", PRODUCT_EMOJIS[products.length % PRODUCT_EMOJIS.length]);
-
-    const newId = generateId();
-    await idbOp('products', 'readwrite', s => s.put({ product_id: newId, name, price, cost, emoji: emoji || '🍉', image: null, is_active: true }));
-    showToast("เพิ่มสินค้าแล้ว ✅");
-    await loadProducts();
-    renderProductGrid();
-    if (!editMode) applyPopularityScaling();
-    renderCharts();
-
-    // Prompt for image upload
-    if (confirm("ต้องการเพิ่มรูปสินค้าเลยไหม?")) triggerImageUpload(newId);
-}
 
 async function exportData() {
     try {

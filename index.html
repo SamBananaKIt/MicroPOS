@@ -133,6 +133,40 @@
             </section>
         </main>
 
+        <!-- Product Modal -->
+        <div id="product-modal" class="modal-overlay" style="display:none">
+            <div class="modal-content">
+                <h3 id="modal-title">เพิ่มสินค้าใหม่</h3>
+
+                <div class="modal-img-upload" id="modal-img-upload">
+                    <div class="img-preview" id="modal-img-preview">📷</div>
+                    <span class="upload-hint">แตะเพื่อเปลี่ยนรูป</span>
+                </div>
+
+                <div class="modal-form">
+                    <label>ชื่อสินค้า</label>
+                    <input type="text" id="modal-input-name" placeholder="เช่น กาแฟเย็น" autocomplete="off">
+
+                    <div class="modal-row">
+                        <div class="modal-col">
+                            <label>ราคาขาย (฿)</label>
+                            <input type="number" id="modal-input-price" placeholder="50" inputmode="decimal">
+                        </div>
+                        <div class="modal-col">
+                            <label>ต้นทุน (฿)</label>
+                            <input type="number" id="modal-input-cost" placeholder="25" inputmode="decimal">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="btn-modal-cancel">ยกเลิก</button>
+                    <button class="btn-delete" id="btn-modal-delete" style="display:none">ลบ</button>
+                    <button class="btn-save" id="btn-modal-save">บันทึก</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast -->
         <div id="toast-container" class="toast-container"></div>
 
