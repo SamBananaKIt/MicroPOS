@@ -172,6 +172,7 @@ async function sellProduct(productId, qty = 1) {
     updateMissionUI();
     applyPopularityScaling();
     updateTopTicker();
+    updateLiveRanking();
     showToast(`${prod.name} x${qty} ✓`);
     if (navigator.vibrate) navigator.vibrate(40);
 
@@ -188,6 +189,7 @@ function renderUI() {
     updateMissionUI();
     applyPopularityScaling();
     updateTopTicker();
+    updateLiveRanking();
 }
 
 function renderProductGrid() {
@@ -343,6 +345,71 @@ function updateTopTicker() {
     } else {
         ticker.style.display = 'none';
     }
+}
+
+// --- LIVE RANKING ---
+let prevRankOrder = [];
+
+function updateLiveRanking() {
+    const section = document.getElementById('ranking-section');
+    const list = document.getElementById('ranking-list');
+    if (!section || !list) return;
+
+    // Build sorted ranking
+    const ranked = [];
+    for (const id in todaySalesByProduct) {
+        ranked.push({ id, name: todaySalesByProduct[id].name, count: todaySalesByProduct[id].count, revenue: todaySalesByProduct[id].revenue });
+    }
+    ranked.sort((a, b) => b.count - a.count);
+
+    if (ranked.length === 0 || ranked[0].count === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+
+    const maxCount = ranked[0].count;
+    const newOrder = ranked.map(r => r.id);
+
+    // Detect if champion changed
+    const champChanged = prevRankOrder.length > 0 && prevRankOrder[0] !== newOrder[0];
+
+    list.innerHTML = '';
+    ranked.forEach((item, i) => {
+        const rank = i + 1;
+        const pct = (item.count / maxCount) * 100;
+        const isNew = !prevRankOrder.includes(item.id);
+        const movedUp = prevRankOrder.indexOf(item.id) > i;
+
+        const medals = ['🏆', '🥈', '🥉'];
+        const numLabel = rank <= 3 ? medals[rank - 1] : rank;
+
+        const el = document.createElement('div');
+        el.className = `rank-item rank-${rank <= 3 ? rank : 'other'}${(isNew || movedUp) ? ' rank-new' : ''}`;
+        el.innerHTML = `
+            <div class="rank-num">${numLabel}</div>
+            <div class="rank-info">
+                <div class="rank-name">${item.name}</div>
+                <div class="rank-bar-track"><div class="rank-bar-fill" style="width:0%"></div></div>
+            </div>
+            <span class="rank-qty">${item.count} ชิ้น</span>
+        `;
+        list.appendChild(el);
+
+        // Animate progress bar fill
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                el.querySelector('.rank-bar-fill').style.width = `${pct}%`;
+            });
+        });
+    });
+
+    // Champion change pop effect
+    if (champChanged && typeof confetti === 'function') {
+        confetti({ particleCount: 30, spread: 50, origin: { y: 0.9 }, colors: ['#14e08a', '#ffd166'] });
+    }
+
+    prevRankOrder = newOrder;
 }
 
 // --- CAROUSEL ---
