@@ -6,7 +6,7 @@ const DB_NAME = 'micropos_db';
 const DB_VERSION = 1;
 
 let db;
-let profile = { id: 'default_user', shop_name: 'ร้านค้าของฉัน', settings: { currency: 'THB', daily_goal_mode: 'revenue', audio: false } };
+let profile = { id: 'default_user', shop_name: 'ร้านค้าของฉัน', settings: { currency: 'THB', daily_goal_mode: 'revenue', audio: false, unit_name: 'ชิ้น' } };
 let dailyState = { date: '', total_qty: 0, total_revenue: 0, goal_value: 1000, goal_progress: 0, streak_count: 0 };
 let products = [];
 let todayStr = '';
@@ -326,6 +326,8 @@ function updateKPIs(animate = true) {
     const revEl = document.getElementById('kpi-revenue');
     const qtyEl = document.getElementById('kpi-qty');
     const streakEl = document.getElementById('kpi-streak');
+    const unitEl = document.getElementById('kpi-unit-name');
+    if (unitEl) unitEl.textContent = profile.settings.unit_name || 'ชิ้น';
     if (animate) {
         animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 500);
         animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '')), dailyState.total_qty, 300);
@@ -537,19 +539,21 @@ const donutCenterPlugin = {
         ctx.save();
         const cx = (chartArea.left + chartArea.right) / 2;
         const cy = (chartArea.top + chartArea.bottom) / 2;
+        const unit = profile.settings.unit_name || 'ชิ้น';
         ctx.font = 'bold 18px Inter';
         ctx.fillStyle = '#00B3C6';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${total.toLocaleString()}฿`, cx, cy);
+        ctx.fillText(`${total.toLocaleString()} ${unit}`, cx, cy);
         ctx.restore();
     }
 };
 
 function renderPieChart(todayTx) {
-    const rev = {};
-    todayTx.forEach(t => { const p = products.find(x => x.product_id === t.product_id); rev[p ? p.name : '?'] = (rev[p ? p.name : '?'] || 0) + t.total_revenue; });
-    const labels = Object.keys(rev), data = Object.values(rev);
+    const qty = {};
+    todayTx.forEach(t => { const p = products.find(x => x.product_id === t.product_id); const name = p ? p.name : '?'; qty[name] = (qty[name] || 0) + t.quantity; });
+    const labels = Object.keys(qty), data = Object.values(qty);
+    const unit = profile.settings.unit_name || 'ชิ้น';
     const ctx = document.getElementById('chart-pie');
     if (!ctx) return;
     if (chartPie) chartPie.destroy();
@@ -560,7 +564,7 @@ function renderPieChart(todayTx) {
             responsive: true, maintainAspectRatio: false, cutout: '65%',
             plugins: {
                 legend: { position: 'right', labels: { boxWidth: 8, padding: 8, font: { size: 10, family: 'Inter' }, color: '#6B8796' } },
-                tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString()} ฿` }, bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } }
+                tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString()} ${unit}` }, bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } }
             }
         },
         plugins: [donutCenterPlugin]
@@ -569,7 +573,8 @@ function renderPieChart(todayTx) {
 
 function renderHourlyChart(todayTx) {
     const h = {}; for (let i = 6; i <= 23; i++) h[i] = 0;
-    todayTx.forEach(t => { const hr = new Date(t.timestamp).getHours(); if (h[hr] !== undefined) h[hr] += t.total_revenue; });
+    todayTx.forEach(t => { const hr = new Date(t.timestamp).getHours(); if (h[hr] !== undefined) h[hr] += t.quantity; });
+    const unit = profile.settings.unit_name || 'ชิ้น';
     const ctx = document.getElementById('chart-hourly');
     if (!ctx) return;
     if (chartHourly) chartHourly.destroy();
@@ -580,36 +585,37 @@ function renderHourlyChart(todayTx) {
             responsive: true, maintainAspectRatio: false,
             scales: {
                 x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter', weight: '600' }, color: '#9CA3AF', maxRotation: 0 } },
-                y: { grid: { color: 'rgba(0,50,80,0.05)', drawBorder: false }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter' }, color: '#9CA3AF' }, beginAtZero: true }
+                y: { grid: { color: 'rgba(0,50,80,0.05)', drawBorder: false }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter' }, color: '#9CA3AF', stepSize: 1 }, beginAtZero: true }
             },
-            plugins: { legend: { display: false }, tooltip: { bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } } }
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.raw} ${unit}` }, bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } } }
         }
     });
 }
 
 function renderWeeklyChart(allTx) {
-    const days = [], revenues = [];
-    for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toLocaleString("en-CA", { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' }); days.push(d.toLocaleDateString('th-TH', { weekday: 'short', timeZone: "Asia/Bangkok" })); revenues.push(allTx.filter(t => t.date === ds).reduce((s, t) => s + t.total_revenue, 0)); }
-    const thisW = revenues.reduce((a, b) => a + b, 0);
-    const lastWRevs = [];
-    for (let i = 13; i >= 7; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toLocaleString("en-CA", { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' }); lastWRevs.push(allTx.filter(t => t.date === ds).reduce((s, t) => s + t.total_revenue, 0)); }
-    const lastW = lastWRevs.reduce((a, b) => a + b, 0);
+    const days = [], quantities = [];
+    const unit = profile.settings.unit_name || 'ชิ้น';
+    for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toLocaleString("en-CA", { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' }); days.push(d.toLocaleDateString('th-TH', { weekday: 'short', timeZone: "Asia/Bangkok" })); quantities.push(allTx.filter(t => t.date === ds).reduce((s, t) => s + t.quantity, 0)); }
+    const thisW = quantities.reduce((a, b) => a + b, 0);
+    const lastWQty = [];
+    for (let i = 13; i >= 7; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toLocaleString("en-CA", { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' }); lastWQty.push(allTx.filter(t => t.date === ds).reduce((s, t) => s + t.quantity, 0)); }
+    const lastW = lastWQty.reduce((a, b) => a + b, 0);
     const growth = lastW > 0 ? ((thisW - lastW) / lastW * 100).toFixed(1) : 0;
     const ctx = document.getElementById('chart-weekly');
     if (!ctx) return;
     if (chartWeekly) chartWeekly.destroy();
     chartWeekly = new Chart(ctx, {
         type: 'line',
-        data: { labels: days, datasets: [{ data: revenues, borderColor: '#00B3C6', backgroundColor: 'rgba(0, 179, 198, 0.1)', fill: true, tension: 0.4, borderWidth: 2.5, pointBackgroundColor: '#00B3C6', pointRadius: 3, pointHoverRadius: 5 }] },
+        data: { labels: days, datasets: [{ data: quantities, borderColor: '#00B3C6', backgroundColor: 'rgba(0, 179, 198, 0.1)', fill: true, tension: 0.4, borderWidth: 2.5, pointBackgroundColor: '#00B3C6', pointRadius: 3, pointHoverRadius: 5 }] },
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: {
                 x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, family: 'Inter', weight: '600' }, color: '#9CA3AF' } },
-                y: { grid: { color: 'rgba(0,50,80,0.05)' }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter' }, color: '#9CA3AF' }, beginAtZero: true }
+                y: { grid: { color: 'rgba(0,50,80,0.05)' }, border: { display: false }, ticks: { font: { size: 9, family: 'Inter' }, color: '#9CA3AF', stepSize: 1 }, beginAtZero: true }
             },
             plugins: {
                 legend: { display: false },
-                tooltip: { bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } },
+                tooltip: { callbacks: { label: (c) => `${c.raw} ${unit}` }, bodyFont: { family: 'Inter' }, titleFont: { family: 'Inter' } },
                 title: { display: true, text: `Growth: ${growth > 0 ? '+' : ''}${growth}%`, font: { size: 11, weight: '700', family: 'Inter' }, color: growth >= 0 ? '#00B3C6' : '#ef4444', padding: { bottom: 4 } }
             }
         }
@@ -998,6 +1004,13 @@ function attachEvents() {
         document.getElementById('settings-mode-qty').classList.add('active');
         document.getElementById('settings-mode-revenue').classList.remove('active');
     });
+
+    // Unit preset buttons
+    document.querySelectorAll('.unit-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('settings-unit-name').value = btn.dataset.unit;
+        });
+    });
 }
 
 // --- SETTINGS MODAL ---
@@ -1005,6 +1018,7 @@ function openSettingsModal() {
     const modal = document.getElementById('settings-modal');
     document.getElementById('settings-shop-name').value = profile.shop_name;
     document.getElementById('settings-goal-value').value = dailyState.goal_value;
+    document.getElementById('settings-unit-name').value = profile.settings.unit_name || 'ชิ้น';
     const isRevenue = profile.settings.daily_goal_mode === 'revenue';
     document.getElementById('settings-mode-revenue').classList.toggle('active', isRevenue);
     document.getElementById('settings-mode-qty').classList.toggle('active', !isRevenue);
@@ -1022,6 +1036,8 @@ async function saveSettings() {
 
     if (shopName) profile.shop_name = shopName;
     profile.settings.daily_goal_mode = isRevenue ? 'revenue' : 'qty';
+    const unitName = document.getElementById('settings-unit-name').value.trim();
+    if (unitName) profile.settings.unit_name = unitName;
     await idbOp('profile', 'readwrite', s => s.put(profile));
 
     if (!isNaN(goalValue) && goalValue > 0) {
@@ -1032,7 +1048,9 @@ async function saveSettings() {
     }
 
     document.getElementById('shop-name-display').textContent = profile.shop_name;
+    updateKPIs();
     updateMissionUI();
+    renderCharts();
     closeSettingsModal();
     showToast("บันทึกการตั้งค่าแล้ว ✅");
 }

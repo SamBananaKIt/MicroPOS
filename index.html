@@ -52,7 +52,7 @@
             <div class="kpi-card">
                 <span class="kpi-label">จำนวน</span>
                 <span class="kpi-value" id="kpi-qty">0</span>
-                <span class="kpi-unit">ชิ้น</span>
+                <span class="kpi-unit" id="kpi-unit-name">ชิ้น</span>
             </div>
             <div class="kpi-card kpi-streak">
                 <span class="kpi-label">Streak</span>
@@ -192,6 +192,16 @@
                         <button id="settings-mode-revenue" class="settings-toggle active" data-mode="revenue">💰 ยอดเงิน
                             (฿)</button>
                         <button id="settings-mode-qty" class="settings-toggle" data-mode="qty">📦 จำนวนชิ้น</button>
+                    </div>
+
+                    <label>คำเรียกสินค้า</label>
+                    <input type="text" id="settings-unit-name" placeholder="ชิ้น" autocomplete="off" maxlength="10">
+                    <div class="unit-presets">
+                        <button type="button" class="unit-preset-btn" data-unit="ชิ้น">ชิ้น</button>
+                        <button type="button" class="unit-preset-btn" data-unit="กล่อง">กล่อง</button>
+                        <button type="button" class="unit-preset-btn" data-unit="ถ้วย">ถ้วย</button>
+                        <button type="button" class="unit-preset-btn" data-unit="จาน">จาน</button>
+                        <button type="button" class="unit-preset-btn" data-unit="แก้ว">แก้ว</button>
                     </div>
                 </div>
 
