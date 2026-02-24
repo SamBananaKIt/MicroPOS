@@ -290,6 +290,7 @@ async function sellProduct(productId, qty = 1) {
 
     showToast(`${prod.name} x${qty} \u2713`, "success", true);
     if (navigator.vibrate) navigator.vibrate(40);
+    playPopSound();
 
     // Bounce KPI
     const revEl = document.getElementById('kpi-revenue');
@@ -1460,6 +1461,17 @@ function attachEvents() {
         document.getElementById('settings-mode-revenue').classList.remove('active');
     });
 
+    // Audio toggles
+    document.getElementById('settings-audio-on')?.addEventListener('click', () => {
+        document.getElementById('settings-audio-on').classList.add('active');
+        document.getElementById('settings-audio-off').classList.remove('active');
+        playPopSound(true); // Preview sound
+    });
+    document.getElementById('settings-audio-off')?.addEventListener('click', () => {
+        document.getElementById('settings-audio-off').classList.add('active');
+        document.getElementById('settings-audio-on').classList.remove('active');
+    });
+
     // Unit preset buttons
     document.querySelectorAll('.unit-preset-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1497,9 +1509,15 @@ function openSettingsModal() {
     document.getElementById('settings-shop-name').value = profile.shop_name;
     document.getElementById('settings-goal-value').value = dailyState.goal_value;
     document.getElementById('settings-unit-name').value = profile.settings.unit_name || 'ชิ้น';
+
     const isRevenue = profile.settings.daily_goal_mode === 'revenue';
     document.getElementById('settings-mode-revenue').classList.toggle('active', isRevenue);
     document.getElementById('settings-mode-qty').classList.toggle('active', !isRevenue);
+
+    const isAudioOn = profile.settings.audio === true;
+    document.getElementById('settings-audio-on').classList.toggle('active', isAudioOn);
+    document.getElementById('settings-audio-off').classList.toggle('active', !isAudioOn);
+
     modal.style.display = 'flex';
 }
 
@@ -1511,9 +1529,12 @@ async function saveSettings() {
     const shopName = document.getElementById('settings-shop-name').value.trim();
     const goalValue = parseInt(document.getElementById('settings-goal-value').value);
     const isRevenue = document.getElementById('settings-mode-revenue').classList.contains('active');
+    const isAudioOn = document.getElementById('settings-audio-on').classList.contains('active');
 
     if (shopName) profile.shop_name = shopName;
     profile.settings.daily_goal_mode = isRevenue ? 'revenue' : 'qty';
+    profile.settings.audio = isAudioOn;
+
     const unitName = document.getElementById('settings-unit-name').value.trim();
     if (unitName) profile.settings.unit_name = unitName;
     await idbOp('profile', 'readwrite', s => s.put(profile));
@@ -1616,6 +1637,30 @@ function showToast(msg, type = "info", showUndo = false) {
     if (showUndo) undoTimeout = timeout;
 }
 
+// --- AUDIO FX ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playPopSound(forcePlay = false) {
+    if (!forcePlay && !profile.settings.audio) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.type = 'sine';
+    // Frequency sweep for a nice pop/bloop sound
+    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+
+    // Quick fade out
+    gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+}
 
 // --- SIMULATION (For Academic Demo) ---
 async function seedHourlySimulation() {
