@@ -386,13 +386,21 @@ function applyPopularityScaling() {
     const items = document.querySelectorAll('.product-item');
     if (!items.length) return;
 
-    const counts = products.map(p => (todaySalesByProduct[p.product_id]?.count) || 0);
-    const maxC = Math.max(...counts, 1);
-    let topIdx = 0, topCount = 0;
-    counts.forEach((c, i) => { if (c > topCount) { topCount = c; topIdx = i; } });
+    // 1. Find the highest count globally today
+    let maxC = 0;
+    let topId = null;
+    for (const id in todaySalesByProduct) {
+        if (todaySalesByProduct[id].count > maxC) {
+            maxC = todaySalesByProduct[id].count;
+            topId = id;
+        }
+    }
+    if (maxC === 0) maxC = 1; // Prevent division by zero
 
-    items.forEach((item, i) => {
-        const c = counts[i] || 0;
+    items.forEach((item) => {
+        const pid = item.dataset.productId;
+        const c = todaySalesByProduct[pid]?.count || 0;
+
         // Soft scaling: 10-15% max
         const scale = 1 + (c / maxC) * 0.12;
         item.style.transform = `scale(${scale})`;
@@ -401,7 +409,7 @@ function applyPopularityScaling() {
         const ringFill = item.querySelector('.ring-fill');
         if (ringFill) {
             const circ = parseFloat(ringFill.dataset.circ);
-            const pct = maxC > 0 ? (c / maxC) : 0;
+            const pct = c / maxC;
             ringFill.style.strokeDashoffset = circ * (1 - pct);
         }
 
@@ -416,7 +424,7 @@ function applyPopularityScaling() {
             badge.style.display = c > 0 ? 'flex' : 'none';
         }
 
-        if (i === topIdx && topCount > 0) {
+        if (pid === topId && maxC > 0) {
             item.classList.add('hot');
             const hb = document.createElement('span');
             hb.className = 'hot-badge';
