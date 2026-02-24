@@ -144,7 +144,7 @@ async function loadTodayData() {
         const pid = t.product_id;
         const p = products.find(x => x.product_id === pid);
         if (!todaySalesByProduct[pid]) todaySalesByProduct[pid] = { count: 0, revenue: 0, profit: 0, name: p?.name || '?' };
-        todaySalesByProduct[pid].count++;
+        todaySalesByProduct[pid].count += (t.quantity || 1);
         todaySalesByProduct[pid].revenue += t.total_revenue;
         todaySalesByProduct[pid].profit += (t.profit || 0);
     });
@@ -377,12 +377,12 @@ function updateKPIs(animate = true) {
     const effEl = document.getElementById('kpi-efficiency');
     if (effEl) {
         const val = intelligenceData.efficiency;
-        effEl.querySelector('.kpi-value').textContent = `${Math.round(val)}%`;
-        effEl.querySelector('.kpi-value').style.color = val >= 100 ? '#14e08a' : '#94a3b8';
+        effEl.textContent = `${Math.round(val)}%`;
+        effEl.style.color = val >= 100 ? '#14e08a' : '#94a3b8';
     }
     const projEl = document.getElementById('kpi-projection');
     if (projEl) {
-        projEl.querySelector('.kpi-value').textContent = `฿${Math.round(intelligenceData.projected).toLocaleString()}`;
+        projEl.textContent = `฿${Math.round(intelligenceData.projected).toLocaleString()}`;
     }
     if (animate) {
         animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 500);
