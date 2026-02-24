@@ -1,4 +1,4 @@
-const CACHE_NAME = 'micropos-v33';
+const CACHE_NAME = 'micropos-v34';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

@@ -12,10 +12,16 @@ let products = [];
 let todayStr = '';
 let todayTx = [];
 let todaySalesByProduct = {};
+let lastTransactionIds = [];
+let undoTimeout = null;
+let currentView = 'cashier';
+let lastShakeTime = 0;
+const SHAKE_THRESHOLD = 15;
+
 let intelligenceData = {
     efficiency: 100,
     projected: 0,
-    trends: {}, // product_id -> { dod, avg7, status }
+    trends: {},
     heatmap: new Array(24).fill(0)
 };
 let chartPie = null, chartHourly = null, chartWeekly = null;
@@ -53,10 +59,10 @@ async function initApp() {
         renderUI();
         attachEvents();
         initCarousel();
+        initGestures();
         renderCharts();
     } catch (e) {
-        console.error("Init error:", e);
-        showToast("เกิดข้อผิดพลาดในการโหลดระบบ", "error");
+        console.error("App init failed", e);
     }
 }
 
@@ -168,9 +174,6 @@ async function loadTodaySalesData() {
 }
 
 // --- SELL & UNDO ---
-let lastTransactionIds = []; // Track IDs of the most recent sale batch
-let undoTimeout = null;
-
 async function undoLastSale() {
     if (!lastTransactionIds.length) return;
 
@@ -231,6 +234,8 @@ async function undoLastSale() {
             renderCharts();
 
             showToast("ยกเลิกรายการสำเร็จ ↩️");
+            const bigUndo = document.getElementById('btn-big-undo');
+            if (bigUndo) bigUndo.style.display = 'none';
         };
     } catch (e) {
         console.error("Undo failed", e);
@@ -276,6 +281,18 @@ async function sellProduct(productId, qty = 1) {
     applyPopularityScaling();
     updateTopTicker();
     updateLiveRanking();
+
+    // v4 UX: Show Big Undo
+    const bigUndo = document.getElementById('btn-big-undo');
+    if (bigUndo) {
+        bigUndo.style.display = 'flex';
+        if (undoTimeout) clearTimeout(undoTimeout);
+        undoTimeout = setTimeout(() => {
+            bigUndo.style.opacity = '0';
+            setTimeout(() => { bigUndo.style.display = 'none'; bigUndo.style.opacity = '1'; }, 300);
+        }, 8000);
+    }
+
     showToast(`${prod.name} x${qty} ✓`, "success", true);
     if (navigator.vibrate) navigator.vibrate(40);
 
@@ -384,14 +401,36 @@ function updateKPIs(animate = true) {
     if (projEl) {
         projEl.textContent = `฿${Math.round(intelligenceData.projected).toLocaleString()}`;
     }
+
+    // v4 Hero Update
+    const heroEff = document.getElementById('hero-efficiency');
+    const heroProj = document.getElementById('hero-projection');
+    const heroStatus = document.getElementById('hero-status');
+
+    if (heroEff) {
+        const val = Math.round(intelligenceData.efficiency);
+        heroEff.textContent = `${val}%`;
+        heroEff.style.color = val >= 100 ? 'var(--accent-success)' : 'var(--text-muted)';
+    }
+    if (heroProj) {
+        heroProj.textContent = `Projected ฿${Math.round(intelligenceData.projected).toLocaleString()}`;
+    }
+    if (heroStatus) {
+        const val = intelligenceData.efficiency;
+        if (val >= 110) heroStatus.textContent = "🚀 พีคมาก เฮีย! วันนี้ร้านมาแรงค่ะ";
+        else if (val >= 100) heroStatus.textContent = "✅ ทะลุเป้าแบบมาตรฐาน ดีมากค่ะ";
+        else if (val >= 80) heroStatus.textContent = "📈 กำลังขึ้นค่ะ อีกนิสจะถึงเป้าเฉลี่ย";
+        else heroStatus.textContent = "☕ พักจิบแฟ แล้วลุยต่อค่ะ เดี๋ยวก็ดีขึ้นนะ";
+    }
+
     if (animate) {
         animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 500);
         animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '')), dailyState.total_qty, 300);
     } else {
-        revEl.innerText = dailyState.total_revenue.toLocaleString();
-        qtyEl.innerText = dailyState.total_qty.toLocaleString();
+        if (revEl) revEl.innerText = dailyState.total_revenue.toLocaleString();
+        if (qtyEl) qtyEl.innerText = dailyState.total_qty.toLocaleString();
     }
-    streakEl.innerText = `🔥 ${dailyState.streak_count}`;
+    if (streakEl) streakEl.innerText = `🔥 ${dailyState.streak_count}`;
 }
 
 let lastThreshold = -1;
@@ -440,8 +479,8 @@ function applyPopularityScaling() {
         const pVal = todaySalesByProduct[pid]?.profit || 0;
         const c = todaySalesByProduct[pid]?.count || 0;
 
-        // Scale circle by Profit proportionality
-        const scale = 1 + (pVal / maxP) * 0.15;
+        // Scale circle by Profit proportionality (v4 boost)
+        const scale = 1 + (pVal / maxP) * 0.25;
         item.style.transform = `scale(${scale})`;
 
         // Activity ring: still based on sales frequency for "momentum" feel
@@ -535,6 +574,7 @@ function updateLiveRanking() {
             const pct = (item.profit / maxProfit) * 100;
             const el = document.createElement('div');
             el.className = `rank-item rank-${rank <= 3 ? rank : 'other'}`;
+            el.dataset.productId = item.id; // Add product ID for swipe-to-delete
             el.innerHTML = `
                 <div class="rank-num">${rank <= 3 ? medals[rank - 1] : rank}</div>
                 <div class="rank-info">
@@ -578,6 +618,80 @@ function initCarousel() {
 
     c.addEventListener('scroll', () => { const idx = Math.round(c.scrollLeft / c.clientWidth); dots.forEach((d, i) => d.classList.toggle('active', i === idx)); });
     dots.forEach(d => d.addEventListener('click', () => c.scrollTo({ left: parseInt(d.dataset.idx) * c.clientWidth, behavior: 'smooth' })));
+}
+
+// --- NAVIGATION & GESTURES ---
+function switchView(viewName) {
+    currentView = viewName;
+    document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+    document.getElementById(`view-${viewName}`).classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.view === viewName);
+    });
+
+    if (viewName === 'brain') {
+        renderCharts();
+        updateIntelligence();
+    }
+    if (navigator.vibrate) navigator.vibrate(20);
+}
+
+function initGestures() {
+    // Shake-to-Undo
+    if (window.DeviceMotionEvent) {
+        window.addEventListener('devicemotion', (e) => {
+            const acc = e.accelerationIncludingGravity;
+            if (!acc) return;
+            const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+            const now = Date.now();
+            if (total > SHAKE_THRESHOLD && (now - lastShakeTime > 2000)) {
+                if (lastTransactionIds.length > 0) {
+                    lastShakeTime = now;
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    undoLastSale();
+                }
+            }
+        });
+    }
+
+    // Nav Click
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.onclick = () => switchView(btn.dataset.view);
+    });
+
+    // Big Undo Click
+    const bigUndo = document.getElementById('btn-big-undo');
+    if (bigUndo) bigUndo.onclick = undoLastSale;
+
+    // Swipe-to-Delete on Ranking items
+    const list = document.getElementById('ranking-list');
+    if (list) {
+        let startX = 0;
+        list.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+        list.addEventListener('touchend', async e => {
+            const item = e.target.closest('.rank-item');
+            if (!item) return;
+            const diff = startX - e.changedTouches[0].clientX;
+            if (diff > 100) { // Swipe left 100px
+                const pid = item.dataset.productId;
+                item.style.transform = 'translateX(-100%)';
+                item.style.opacity = '0';
+                if (navigator.vibrate) navigator.vibrate(50);
+                setTimeout(() => undoProductSale(pid), 300);
+            }
+        });
+    }
+}
+
+async function undoProductSale(productId) {
+    const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
+    const todayTx = allTx.filter(t => t.date === todayStr);
+    const txs = todayTx.filter(t => t.product_id === productId);
+    if (txs.length === 0) return;
+    const lastTx = txs[txs.length - 1];
+    lastTransactionIds = [lastTx.tx_id];
+    await undoLastSale();
 }
 
 // --- CHARTS ---

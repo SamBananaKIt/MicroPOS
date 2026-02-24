@@ -42,96 +42,16 @@
             </button>
         </div>
 
-        <!-- KPI Cards Row -->
-        <div class="kpi-row" role="region" aria-label="ข้อมูลยอดขายวันนี้">
-            <div class="kpi-card kpi-revenue">
-                <span class="kpi-label">ยอดขาย</span>
-                <span class="kpi-value" id="kpi-revenue">0</span>
-                <span class="kpi-unit">฿</span>
-            </div>
-            <div class="kpi-card">
-                <span class="kpi-label">จำนวน</span>
-                <span class="kpi-value" id="kpi-qty">0</span>
-                <span class="kpi-unit" id="kpi-unit-name">ชิ้น</span>
-            </div>
-            <div class="kpi-card kpi-streak">
-                <span class="kpi-label">Streak</span>
-                <span class="kpi-value" id="kpi-streak">🔥 0</span>
-            </div>
-            <div class="kpi-card kpi-efficiency">
-                <span class="kpi-label">Efficiency</span>
-                <span class="kpi-value" id="kpi-efficiency">100%</span>
-            </div>
-            <div class="kpi-card kpi-projection">
-                <span class="kpi-label">Projected</span>
-                <span class="kpi-value" id="kpi-projection">฿0</span>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <main class="app-main">
-
+        <!-- Main App Container -->
+        <main id="view-cashier" class="app-view active">
             <!-- Top Seller Ticker (Top Position) -->
             <div id="top-seller-ticker" class="top-ticker" style="display:none">
-                <span class="ticker-icon">🏆</span>
-                <span class="ticker-text" id="ticker-text">—</span>
+                🏆 วันนี้ขายดีสุด: <span style="color:var(--primary); font-weight:800">...</span>
             </div>
 
-            <!-- Analytics Carousel -->
-            <section class="analytics-card">
-                <div class="carousel-container" id="analytics-carousel">
-                    <div class="carousel-track">
-                        <!-- Slide 1: Mission -->
-                        <div class="carousel-slide">
-                            <span class="slide-label">🎯 เป้าหมายวันนี้</span>
-                            <div class="mission-numbers">
-                                <span class="mission-current" id="mission-current">0</span>
-                                <span class="mission-sep">/</span>
-                                <span class="mission-target" id="mission-target">0</span>
-                            </div>
-                            <div class="progress-track">
-                                <div class="progress-fill" id="mission-progress-bar"></div>
-                            </div>
-                            <p id="mission-message" class="mission-msg">เริ่มได้ดีแล้ว เฮีย สู้ ๆ ค่ะ 💪</p>
-                        </div>
-                        <!-- Slide 2: Pie -->
-                        <div class="carousel-slide">
-                            <span class="slide-label">📊 สัดส่วนยอดขาย</span>
-                            <div class="chart-wrap"><canvas id="chart-pie"></canvas></div>
-                        </div>
-                        <!-- Slide 3: Hourly -->
-                        <div class="carousel-slide">
-                            <span class="slide-label">⏰ รายชั่วโมง</span>
-                            <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
-                        </div>
-                        <!-- Slide 4: Weekly -->
-                        <div class="carousel-slide">
-                            <span class="slide-label">📈 7 วันย้อนหลัง</span>
-                            <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
-                        </div>
-                        <div class="carousel-slide">
-                            <div class="chart-header">
-                                <span class="chart-title">Time Heatmap (24h)</span>
-                            </div>
-                            <div id="heat-map-container" class="heat-map">
-                                <!-- JS injects 24 cells -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="carousel-dots" id="carousel-dots">
-                    <div class="carousel-dot active" data-idx="0"></div>
-                    <div class="carousel-dot" data-idx="1"></div>
-                    <div class="carousel-dot" data-idx="2"></div>
-                    <div class="carousel-dot" data-idx="3"></div>
-                    <div class="carousel-dot" data-idx="4"></div>
-                </div>
-            </section>
-
-            <!-- Products -->
-            <section>
+            <section class="products-section">
                 <div class="section-header">
-                    <h2 class="section-title">สินค้า</h2>
+                    <h2>สินค้า</h2>
                     <div class="section-header-actions">
                         <select id="product-sort" class="sort-select" aria-label="เรียงสินค้า">
                             <option value="default">ค่าเริ่มต้น</option>
@@ -148,15 +68,87 @@
                 </div>
             </section>
 
+            <!-- Big Undo Button (Cashier View) -->
+            <button id="btn-big-undo" class="big-undo-btn" style="display:none">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                        d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+                <span>กดผิด? แก้ไขรายการล่าสุด</span>
+            </button>
+        </main>
+
+        <main id="view-brain" class="app-view">
+            <!-- Hero Section (The "SaaS" Look) -->
+            <section class="hero-section">
+                <div class="hero-card">
+                    <div class="hero-header">วันนี้ร้านทำได้</div>
+                    <div class="hero-efficiency" id="hero-efficiency">100%</div>
+                    <div class="hero-projection" id="hero-projection">Projected ฿0</div>
+                    <div class="hero-status" id="hero-status">กำลังประมวลผล...</div>
+                </div>
+            </section>
+
+            <!-- KPI Mini Row (Only primary stats) -->
+            <div class="kpi-row-mini">
+                <div class="kpi-mini">
+                    <span class="label">ยอดขาย</span>
+                    <span class="value" id="kpi-revenue">0</span>
+                </div>
+                <div class="kpi-mini">
+                    <span class="label">จำนวน</span>
+                    <span class="value" id="kpi-qty">0</span>
+                </div>
+                <div class="kpi-mini">
+                    <span class="label">Streak</span>
+                    <span class="value" id="kpi-streak">🔥 0</span>
+                </div>
+            </div>
+
+            <!-- Enhanced Carousel (Heatmap/Graphs) -->
+            <section class="analytics-section">
+                <div class="carousel-container" id="carousel">
+                    <!-- Slide 1: Mission -->
+                    <div class="carousel-slide" id="mission-slide">
+                        <div class="mission-card">
+                            <div class="mission-header">
+                                <span class="mission-icon">🎯</span>
+                                <span class="mission-title">เป้าหมายวันนี้</span>
+                            </div>
+                            <div class="mission-progress-wrap">
+                                <div class="mission-stats">
+                                    <span class="mission-current" id="mission-current">0</span>
+                                    <span class="mission-slash">/</span>
+                                    <span class="mission-goal" id="mission-goal">1,000</span>
+                                </div>
+                                <div class="mission-bar">
+                                    <div class="mission-fill" id="mission-fill" style="width:0%"></div>
+                                </div>
+                                <div class="mission-msg" id="mission-msg">เริ่มได้ดีแล้ว เฮีย! สู้ๆ ค่ะ 💪</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Slide 2: Category Pie -->
+                    <div class="carousel-slide">
+                        <div class="chart-container"><canvas id="chart-pie"></canvas></div>
+                    </div>
+                    <!-- Slide 3: Time Heatmap (The new highlight) -->
+                    <div class="carousel-slide">
+                        <div class="heatmap-card">
+                            <div class="heatmap-header">ช่วงเวลาขายดี (Heatmap)</div>
+                            <div id="heat-map-container" class="heat-map-grid"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-dots" id="carousel-dots">
+                    <span class="dot active"></span><span class="dot"></span><span class="dot"></span>
+                </div>
+            </section>
+
             <!-- Live Ranking -->
-            <section class="ranking-section" id="ranking-section" style="display:none" role="region"
-                aria-label="อันดับสินค้าขายดี">
-                <div class="ranking-header">
-                    <span>🔥 วันนี้ใครนำ?</span>
-                </div>
-                <div class="ranking-list" id="ranking-list">
-                    <!-- JS injects -->
-                </div>
+            <div class="ranking-list" id="ranking-list">
+                <!-- JS injects -->
+            </div>
             </section>
         </main>
 
