@@ -389,13 +389,41 @@ body {
     background: rgba(20, 224, 138, 0.15);
 }
 
+.section-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sort-select {
+    padding: 5px 10px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--card-border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239BADB6' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 24px;
+}
+
+.sort-select:focus {
+    border-color: var(--primary);
+}
+
 /* ===== CIRCULAR PRODUCT GRID ===== */
 .product-grid {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 82px);
     justify-content: center;
-    gap: 30px 24px;
-    /* Increased vertical gap */
+    gap: 28px 20px;
     padding: var(--sp-md) 0;
 }
 
@@ -1311,6 +1339,7 @@ body {
 
     /* Product Grid — scale circles up, more per row */
     .product-grid {
+        grid-template-columns: repeat(auto-fill, 100px);
         gap: 28px 28px;
     }
 
@@ -1417,6 +1446,7 @@ body {
 
     /* Product Grid — even bigger circles */
     .product-grid {
+        grid-template-columns: repeat(auto-fill, 104px);
         gap: 30px 30px;
         justify-content: flex-start;
     }

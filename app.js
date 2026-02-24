@@ -268,9 +268,27 @@ function renderUI() {
 function renderProductGrid() {
     const grid = document.getElementById('product-grid');
     grid.innerHTML = '';
-    const CIRC = 2 * Math.PI * 40; // circumference for activity ring (r=40)
+    const CIRC = 2 * Math.PI * 40;
 
-    products.forEach((p, i) => {
+    // Sort products based on dropdown
+    const sortMode = document.getElementById('product-sort')?.value || 'default';
+    let sorted = [...products];
+    switch (sortMode) {
+        case 'best':
+            sorted.sort((a, b) => ((todaySalesByProduct[b.product_id]?.count || 0) - (todaySalesByProduct[a.product_id]?.count || 0)));
+            break;
+        case 'price-asc':
+            sorted.sort((a, b) => a.price - b.price);
+            break;
+        case 'price-desc':
+            sorted.sort((a, b) => b.price - a.price);
+            break;
+        case 'name':
+            sorted.sort((a, b) => a.name.localeCompare(b.name, 'th'));
+            break;
+    }
+
+    sorted.forEach((p, i) => {
         const emoji = p.emoji || PRODUCT_EMOJIS[i % PRODUCT_EMOJIS.length];
         const salesData = todaySalesByProduct[p.product_id];
         const salesCount = salesData ? salesData.count : 0;
@@ -977,6 +995,10 @@ function attachEvents() {
     if (editAddBtn) editAddBtn.addEventListener('click', () => openProductModal());
     const editDone = document.getElementById('edit-done');
     if (editDone) editDone.addEventListener('click', toggleEditMode);
+
+    // Sort dropdown
+    const sortSelect = document.getElementById('product-sort');
+    if (sortSelect) sortSelect.addEventListener('change', () => { renderProductGrid(); if (!editMode) applyPopularityScaling(); });
 
     // Product Modal Events
     const modalCancelBtn = document.getElementById('btn-modal-cancel');

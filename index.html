@@ -115,7 +115,16 @@
             <section>
                 <div class="section-header">
                     <h2 class="section-title">สินค้า</h2>
-                    <button id="btn-add-product" class="add-btn" aria-label="เพิ่มสินค้าใหม่">+ เพิ่มใหม่</button>
+                    <div class="section-header-actions">
+                        <select id="product-sort" class="sort-select" aria-label="เรียงสินค้า">
+                            <option value="default">ค่าเริ่มต้น</option>
+                            <option value="best">ขายดี ↓</option>
+                            <option value="price-asc">ราคา ↑</option>
+                            <option value="price-desc">ราคา ↓</option>
+                            <option value="name">ก-ฮ</option>
+                        </select>
+                        <button id="btn-add-product" class="add-btn" aria-label="เพิ่มสินค้าใหม่">+ เพิ่มใหม่</button>
+                    </div>
                 </div>
                 <div id="product-grid" class="product-grid" role="list" aria-label="รายการสินค้า">
                     <!-- JS injects -->
