@@ -47,10 +47,9 @@ async function initApp() {
         todayStr = getLocalToday();
         await initDB();
         await loadProfile();
-        await initDailyState();
         await loadProducts();
         if (products.length === 0) { await createDummyProducts(); await loadProducts(); }
-        await loadTodaySalesData();
+        await initDailyState();
         renderUI();
         attachEvents();
         initCarousel();
@@ -113,7 +112,11 @@ async function initDailyState() {
         if (prev.length > 0) {
             streak = prev[0].goal_progress >= prev[0].goal_value ? prev[0].streak_count + 1 : 0;
             const sample = prev.slice(0, 7);
-            avgBase = sample.reduce((a, v) => a + (profile.settings.daily_goal_mode === 'revenue' ? v.total_revenue : v.total_qty), 0) / sample.length;
+            const sum = sample.reduce((a, v) => {
+                const val = profile.settings.daily_goal_mode === 'revenue' ? (v.total_revenue || 0) : (v.total_qty || 0);
+                return a + val;
+            }, 0);
+            avgBase = sum / sample.length;
         }
         if (avgBase < 100) avgBase = 500;
         dailyState = {
@@ -161,15 +164,7 @@ async function createDummyProducts() {
 }
 
 async function loadTodaySalesData() {
-    todaySalesByProduct = {};
-    try {
-        const all = await idbOp('transactions', 'readonly', s => s.getAll());
-        all.filter(t => t.date === todayStr).forEach(t => {
-            if (!todaySalesByProduct[t.product_id]) { const p = products.find(x => x.product_id === t.product_id); todaySalesByProduct[t.product_id] = { count: 0, revenue: 0, name: p ? p.name : '?' }; }
-            todaySalesByProduct[t.product_id].count += t.quantity;
-            todaySalesByProduct[t.product_id].revenue += t.total_revenue;
-        });
-    } catch (e) { console.error("Sales load failed:", e); }
+    await loadTodayData();
 }
 
 // --- SELL & UNDO ---
