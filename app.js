@@ -1612,7 +1612,7 @@ function showToast(msg, type = "info", showUndo = false) {
         el.innerHTML = `<span>${msg}</span> <button class="undo-btn" onclick="undoLastSale()">ย้อนกลับ ↩️</button>`;
     } else { el.innerText = msg; }
     c.appendChild(el);
-    const timeout = setTimeout(() => el.remove(), showUndo ? 7000 : 3000);
+    const timeout = setTimeout(() => el.remove(), showUndo ? 3000 : 1500);
     if (showUndo) undoTimeout = timeout;
 }
 
