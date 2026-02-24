@@ -917,7 +917,12 @@ async function updateIntelligence() {
     const avg3 = lookback3.length > 0 ? (lookback3.reduce((s, d) => s + d.total_revenue, 0) / lookback3.length) : 0;
 
     let baseline = avg7 > 0 ? avg7 : avg3;
-    let score = baseline > 0 ? (dailyState.total_revenue / baseline) * 100 : 100;
+    let score = 0;
+    if (baseline > 0) {
+        score = (dailyState.total_revenue / baseline) * 100;
+    } else if (dailyState.total_revenue > 0) {
+        score = 100; // First sale with no baseline
+    }
     intelligenceData.efficiency = Math.min(Math.max(score, 0), 300);
 
     // 2. Momentum Prediction (Minute-based)

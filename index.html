@@ -49,7 +49,43 @@
                 🏆 วันนี้ขายดีสุด: <span style="color:var(--primary); font-weight:800">...</span>
             </div>
 
-            <section class="products-section">
+            <!-- Dashboard Summary Header -->
+            <div class="today-stats">
+                <div class="today-stats-grid">
+                    <div class="stat-card stat-revenue">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-value" id="cashier-revenue">฿0</div>
+                        <div class="stat-label">ยอดขาย</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-value" id="cashier-qty">0</div>
+                        <div class="stat-label">จำนวน</div>
+                    </div>
+                    <div class="stat-card stat-profit">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-value" id="cashier-profit">฿0</div>
+                        <div class="stat-label">กำไร</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-value" id="cashier-streak">0</div>
+                        <div class="stat-label">สตรีค</div>
+                    </div>
+                </div>
+                <!-- Progress Bar -->
+                <div class="today-progress">
+                    <div class="today-progress-header">
+                        <span>ความคืบหน้าตามเป้า</span>
+                        <span id="cashier-goal-pct">0%</span>
+                    </div>
+                    <div class="today-progress-bar">
+                        <div class="today-progress-fill" id="cashier-goal-fill" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="products-section" style="margin-top: 16px;">
                 <div class="section-header">
                     <h2>สินค้า</h2>
                     <div class="section-header-actions">
