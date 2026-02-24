@@ -439,6 +439,8 @@ function renderProductGrid() {
 function updateKPIs(animate = true) {
     const revEl = document.getElementById('kpi-revenue');
     const qtyEl = document.getElementById('kpi-qty');
+    const profitEl = document.getElementById('kpi-profit');
+    const costEl = document.getElementById('kpi-cost');
     const streakEl = document.getElementById('kpi-streak');
     const unitEl = document.getElementById('kpi-unit-name');
     if (unitEl) unitEl.textContent = profile.settings.unit_name || 'ชิ้น';
@@ -480,9 +482,12 @@ function updateKPIs(animate = true) {
         animateValue(revEl, startRev, dailyState.total_revenue, 500);
         animateValue(qtyEl, startQty, dailyState.total_qty, 300);
     } else {
-        if (revEl) revEl.innerText = dailyState.total_revenue.toLocaleString();
-        if (qtyEl) qtyEl.innerText = dailyState.total_qty.toLocaleString();
+        if (revEl) revEl.innerText = '฿' + (dailyState.total_revenue || 0).toLocaleString();
+        if (qtyEl) qtyEl.innerText = (dailyState.total_qty || 0).toLocaleString();
     }
+
+    if (profitEl) profitEl.innerText = '฿' + (dailyState.total_profit || 0).toLocaleString();
+    if (costEl) costEl.innerText = '฿' + (dailyState.total_cost || 0).toLocaleString();
     if (streakEl) streakEl.innerText = `🔥 ${dailyState.streak_count}`;
 }
 

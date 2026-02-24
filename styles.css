@@ -232,8 +232,8 @@ body {
 
 /* Mini KPI Row in Brain View */
 .kpi-row-mini {
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     padding: 0 var(--sp-xl) var(--sp-xl);
     gap: 12px;
 }
@@ -1545,7 +1545,8 @@ body {
     inset: 0;
     background: rgba(26, 42, 51, 0.4);
     backdrop-filter: blur(4px);
-    z-index: 100;
+    z-index: 1050;
+    /* Higher than bottom nav (1000) */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1557,14 +1558,51 @@ body {
     background: var(--surface);
     width: 100%;
     max-width: 360px;
-    max-height: 90vh; /* Allow it to fit within screen */
+    max-height: 85vh;
+    /* Slightly smaller to ensure bottom margin */
     border-radius: var(--r-xl);
-    padding: var(--sp-xl);
     box-shadow: 0 20px 40px rgba(0, 50, 80, 0.15);
     display: flex;
     flex-direction: column;
-    gap: var(--sp-lg);
-    overflow-y: auto; /* Enable scrolling if content overflows */
+    overflow: hidden;
+    /* Important: stop outer scrolling, let inner body scroll */
+    position: relative;
+}
+
+/* Modal sections for sticky header/footer */
+.modal-header-sticky {
+    padding: var(--sp-lg) var(--sp-lg) 0;
+    flex-shrink: 0;
+}
+
+.modal-body-scrollable {
+    padding: var(--sp-md) var(--sp-lg);
+    overflow-y: auto;
+    flex: 1;
+    overscroll-behavior: contain;
+    /* Prevent background scroll chaining */
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-footer-sticky {
+    padding: 0 var(--sp-lg) var(--sp-lg);
+    flex-shrink: 0;
+    background: var(--surface);
+    border-top: 1px solid rgba(0, 50, 80, 0.05);
+    /* subtle separation */
+    z-index: 10;
+}
+
+/* Base modal padding fix for standard modals without header/body structure */
+.modal-content:not(.settings-modal-content) {
+    padding: var(--sp-lg);
+    gap: var(--sp-md);
+    overflow-y: auto;
+}
+
+/* Ensure bottom nav doesn't cover modal on some mobile devices */
+.modal-overlay {
+    padding-bottom: 90px;
 }
 
 #modal-title {
@@ -1619,26 +1657,32 @@ body {
 .modal-form {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-md);
-    overflow-y: visible; /* Let parent handle scrolling */
+    gap: 10px;
+    /* Reduced from md */
+    overflow-y: visible;
+    /* Let parent handle scrolling */
 }
 
 .modal-form label {
-    font-size: 12px;
+    font-size: 11px;
+    /* Slightly smaller */
     font-weight: 700;
     color: var(--text-muted);
-    margin-bottom: -4px;
+    margin-bottom: -6px;
+    /* Tighter margin */
 }
 
 .modal-form input {
     width: 100%;
-    padding: 12px 14px;
+    padding: 10px 12px;
+    /* Tighter padding */
     border-radius: var(--r-sm);
     border: 1px solid rgba(0, 50, 80, 0.1);
     background: #F4F8FB;
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
-    font-size: 15px;
+    font-size: 14px;
+    /* Slightly smaller text */
     font-weight: 600;
     outline: none;
     transition: all 0.2s;
@@ -1724,13 +1768,15 @@ body {
 
 .settings-toggle {
     flex: 1;
-    padding: 10px;
+    padding: 8px 10px;
+    /* Reduced padding */
     border-radius: var(--r-sm);
     border: 1px solid var(--card-border);
     background: var(--bg);
     color: var(--text-muted);
     font-family: 'Inter', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
+    /* Smaller font */
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -1757,19 +1803,22 @@ body {
 }
 
 .settings-action-btn {
-    padding: 12px;
+    padding: 10px;
+    /* Tighter padding */
     border-radius: var(--r-sm);
     border: 1px solid var(--card-border);
     background: var(--bg);
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
-    font-size: 12px;
+    font-size: 11px;
+    /* Smaller text */
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    /* Tighter gap */
     justify-content: center;
 }
 
@@ -2078,6 +2127,7 @@ body {
         height: 90px;
     }
 }
+
 /* --- Two-Stage Long Press Visuals --- */
 .product-item {
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s ease;
@@ -2101,8 +2151,15 @@ body {
 }
 
 @keyframes urgent-pulse {
-    from { transform: scale(1.15); box-shadow: 0 0 10px var(--accent); }
-    to { transform: scale(1.2); box-shadow: 0 0 25px var(--accent); }
+    from {
+        transform: scale(1.15);
+        box-shadow: 0 0 10px var(--accent);
+    }
+
+    to {
+        transform: scale(1.2);
+        box-shadow: 0 0 25px var(--accent);
+    }
 }
 
 /* --- Heatmap Detail Enhanced --- */
@@ -2119,23 +2176,23 @@ body {
     transition: all 0.3s ease;
 }
 
-.h-detail-time { 
-    font-size: 10px; 
-    color: var(--text-muted); 
-    font-weight: 700; 
+.h-detail-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-.h-detail-main { 
-    font-size: 18px; 
-    font-weight: 900; 
-    color: var(--primary); 
+.h-detail-main {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--primary);
     margin: 2px 0;
 }
 
-.h-detail-sub { 
-    font-size: 12px; 
+.h-detail-sub {
+    font-size: 12px;
     color: var(--text-muted);
     font-weight: 500;
 }
