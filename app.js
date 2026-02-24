@@ -423,9 +423,9 @@ function updateKPIs(animate = true) {
         else heroStatus.textContent = "☕ พักจิบแฟ แล้วลุยต่อค่ะ เดี๋ยวก็ดีขึ้นนะ";
     }
 
-    if (animate) {
-        animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 500);
-        animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '')), dailyState.total_qty, 300);
+    if (animate && revEl && qtyEl) {
+        animateValue(revEl, Number(revEl.innerText.replace(/,/g, '') || 0), dailyState.total_revenue, 500);
+        animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '') || 0), dailyState.total_qty, 300);
     } else {
         if (revEl) revEl.innerText = dailyState.total_revenue.toLocaleString();
         if (qtyEl) qtyEl.innerText = dailyState.total_qty.toLocaleString();
@@ -436,24 +436,28 @@ function updateKPIs(animate = true) {
 let lastThreshold = -1;
 function updateMissionUI() {
     const curEl = document.getElementById('mission-current');
-    const targetEl = document.getElementById('mission-target');
-    const bar = document.getElementById('mission-progress-bar');
-    if (curEl) {
-        const startVal = Number(curEl.innerText.replace(/,/g, '')) || 0;
-        animateValue(curEl, startVal, dailyState.goal_progress, 600);
-    }
-    if (targetEl) targetEl.innerText = dailyState.goal_value.toLocaleString() + (profile.settings.daily_goal_mode === 'revenue' ? '฿' : '');
-    let pct = Math.min((dailyState.goal_progress / dailyState.goal_value) * 100, 100);
-    if (bar) bar.style.width = `${pct}%`;
+    const goalEl = document.getElementById('mission-goal');
+    const fill = document.getElementById('mission-fill');
+    const msgEl = document.getElementById('mission-msg');
+    if (!curEl || !goalEl || !fill) return;
 
-    const thresholds = [0, 10, 25, 50, 75, 90, 100].reverse();
-    const hit = thresholds.find(t => pct >= t);
-    if (hit !== undefined && hit !== lastThreshold) {
-        lastThreshold = hit;
-        const msgs = MOTIVATIONAL_MESSAGES[hit];
-        const msgEl = document.getElementById('mission-message');
-        if (msgEl) { msgEl.innerText = msgs[Math.floor(Math.random() * msgs.length)]; msgEl.classList.remove('animate-fade-in'); void msgEl.offsetWidth; msgEl.classList.add('animate-fade-in'); }
-        if (hit === 100) triggerConfetti();
+    const current = dailyState.goal_progress;
+    const goal = dailyState.goal_value;
+    const pct = Math.min((current / goal) * 100, 100);
+
+    curEl.textContent = current.toLocaleString();
+    goalEl.textContent = goal.toLocaleString();
+    fill.style.width = `${pct}%`;
+
+    if (msgEl) {
+        const thresholds = [100, 90, 75, 50, 25, 10, 0];
+        const hit = thresholds.find(t => pct >= t);
+        if (hit !== undefined && hit !== lastThreshold) {
+            lastThreshold = hit;
+            const msgs = MOTIVATIONAL_MESSAGES[hit];
+            msgEl.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+            if (hit === 100) triggerConfetti();
+        }
     }
 }
 
@@ -516,8 +520,7 @@ function applyPopularityScaling() {
 // --- TOP SELLER TICKER ---
 function updateTopTicker() {
     const ticker = document.getElementById('top-seller-ticker');
-    const tickerText = document.getElementById('ticker-text');
-    if (!ticker || !tickerText) return;
+    if (!ticker) return;
 
     let topName = '', topRev = 0;
     for (const id in todaySalesByProduct) {
@@ -529,7 +532,8 @@ function updateTopTicker() {
 
     if (topRev > 0) {
         ticker.style.display = 'flex';
-        tickerText.innerHTML = `วันนี้ขายดีสุด: <strong>${topName}</strong> (฿${topRev.toLocaleString()})`;
+        const span = ticker.querySelector('span');
+        if (span) span.textContent = `${topName} (฿${topRev.toLocaleString()})`;
     } else {
         ticker.style.display = 'none';
     }
@@ -539,9 +543,8 @@ function updateTopTicker() {
 let prevRankOrder = [];
 
 function updateLiveRanking() {
-    const section = document.getElementById('ranking-section');
     const list = document.getElementById('ranking-list');
-    if (!section || !list) return;
+    if (!list) return;
 
     // Build sorted ranking by PROFIT
     const ranked = [];
@@ -551,10 +554,10 @@ function updateLiveRanking() {
     ranked.sort((a, b) => b.profit - a.profit);
 
     if (ranked.length === 0 || ranked[0].profit === 0) {
-        section.style.display = 'none';
+        list.style.display = 'none';
         return;
     }
-    section.style.display = '';
+    list.style.display = '';
 
     const maxProfit = ranked[0].profit;
     const newOrder = ranked.map(r => r.id);
@@ -605,19 +608,17 @@ function updateLiveRanking() {
 
 // --- CAROUSEL ---
 function initCarousel() {
-    const c = document.getElementById('analytics-carousel');
-    const track = c ? c.querySelector('.carousel-track') : null;
-    const dots = document.querySelectorAll('.carousel-dot');
+    const c = document.getElementById('carousel');
+    const dots = document.querySelectorAll('.dot');
     if (!c || !dots.length) return;
 
-    // Add swipe hint animation on load
-    if (track) {
-        track.classList.add('swipe-hint');
-        setTimeout(() => track.classList.remove('swipe-hint'), 2000);
-    }
-
-    c.addEventListener('scroll', () => { const idx = Math.round(c.scrollLeft / c.clientWidth); dots.forEach((d, i) => d.classList.toggle('active', i === idx)); });
-    dots.forEach(d => d.addEventListener('click', () => c.scrollTo({ left: parseInt(d.dataset.idx) * c.clientWidth, behavior: 'smooth' })));
+    c.addEventListener('scroll', () => {
+        const idx = Math.round(c.scrollLeft / (c.offsetWidth || 1));
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    });
+    dots.forEach((d, i) => {
+        d.onclick = () => c.scrollTo({ left: i * c.offsetWidth, behavior: 'smooth' });
+    });
 }
 
 // --- NAVIGATION & GESTURES ---
@@ -697,7 +698,7 @@ async function undoProductSale(productId) {
 // --- CHARTS ---
 async function renderCharts() {
     if (typeof Chart === 'undefined') return;
-    const carousel = document.getElementById('analytics-carousel');
+    const carousel = document.getElementById('carousel');
     const scrollPos = carousel ? carousel.scrollLeft : 0;
     const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
     const todayTx = allTx.filter(t => t.date === todayStr);
