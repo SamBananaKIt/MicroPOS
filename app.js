@@ -539,11 +539,15 @@ function initCarousel() {
 // --- CHARTS ---
 async function renderCharts() {
     if (typeof Chart === 'undefined') return;
+    const carousel = document.getElementById('analytics-carousel');
+    const scrollPos = carousel ? carousel.scrollLeft : 0;
     const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
     const todayTx = allTx.filter(t => t.date === todayStr);
     renderPieChart(todayTx);
     renderHourlyChart(todayTx);
     renderWeeklyChart(allTx);
+    // Restore carousel position after chart re-render
+    if (carousel) requestAnimationFrame(() => carousel.scrollLeft = scrollPos);
 }
 
 // Donut center text plugin
@@ -645,13 +649,13 @@ function updateChartsOnSale(tx) {
         const p = products.find(x => x.product_id === tx.product_id);
         const n = p ? p.name : '?';
         const idx = chartPie.data.labels.indexOf(n);
-        if (chartPie.data.labels[0] === 'ยังไม่มี') { chartPie.data.labels = [n]; chartPie.data.datasets[0].data = [tx.total_revenue]; chartPie.data.datasets[0].backgroundColor = [CHART_COLORS[0]]; }
-        else if (idx >= 0) chartPie.data.datasets[0].data[idx] += tx.total_revenue;
-        else { chartPie.data.labels.push(n); chartPie.data.datasets[0].data.push(tx.total_revenue); chartPie.data.datasets[0].backgroundColor.push(CHART_COLORS[chartPie.data.labels.length - 1] || '#6b7280'); }
+        if (chartPie.data.labels[0] === 'ยังไม่มี') { chartPie.data.labels = [n]; chartPie.data.datasets[0].data = [tx.quantity]; chartPie.data.datasets[0].backgroundColor = [CHART_COLORS[0]]; }
+        else if (idx >= 0) chartPie.data.datasets[0].data[idx] += tx.quantity;
+        else { chartPie.data.labels.push(n); chartPie.data.datasets[0].data.push(tx.quantity); chartPie.data.datasets[0].backgroundColor.push(CHART_COLORS[chartPie.data.labels.length - 1] || '#6b7280'); }
         chartPie.update('none');
     }
-    if (chartHourly) { const hr = new Date(tx.timestamp).getHours(); const idx = chartHourly.data.labels.indexOf(`${hr}:00`); if (idx >= 0) chartHourly.data.datasets[0].data[idx] += tx.total_revenue; chartHourly.update('none'); }
-    if (chartWeekly) { const last = chartWeekly.data.datasets[0].data.length - 1; chartWeekly.data.datasets[0].data[last] += tx.total_revenue; chartWeekly.update('none'); }
+    if (chartHourly) { const hr = new Date(tx.timestamp).getHours(); const idx = chartHourly.data.labels.indexOf(`${hr}:00`); if (idx >= 0) chartHourly.data.datasets[0].data[idx] += tx.quantity; chartHourly.update('none'); }
+    if (chartWeekly) { const last = chartWeekly.data.datasets[0].data.length - 1; chartWeekly.data.datasets[0].data[last] += tx.quantity; chartWeekly.update('none'); }
 }
 
 // --- IMAGE HANDLING ---
