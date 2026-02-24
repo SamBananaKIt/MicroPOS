@@ -215,7 +215,7 @@ async function sellProduct(productId, qty = 1) {
     const sessionIds = [];
 
     for (let i = 0; i < qty; i++) {
-        const tx = { tx_id: generateId(), product_id: prod.product_id, quantity: 1, unit_price: Number(prod.price), unit_cost: Number(prod.cost), total_revenue: Number(prod.price), total_cost: Number(prod.cost), profit: Number(prod.price) - Number(prod.cost), timestamp: new Date().toISOString(), date: todayStr };
+        const tx = { tx_id: generateId(), product_id: prod.product_id, name: prod.name, quantity: 1, unit_price: Number(prod.price), unit_cost: Number(prod.cost), total_revenue: Number(prod.price), total_cost: Number(prod.cost), profit: Number(prod.price) - Number(prod.cost), timestamp: new Date().toISOString(), date: todayStr };
 
         dailyState.total_qty += 1;
         dailyState.total_revenue += tx.total_revenue;
@@ -968,7 +968,8 @@ async function updateIntelligence() {
         const hourData = intelligenceData.heatmap[hr];
         if (hourData) {
             hourData.count++;
-            hourData.products[t.name] = (hourData.products[t.name] || 0) + (t.quantity || 1);
+            const pName = t.name || products.find(p => p.product_id === t.product_id)?.name || 'N/A';
+            hourData.products[pName] = (hourData.products[pName] || 0) + (t.quantity || 1);
         }
     });
 
@@ -1443,8 +1444,11 @@ function attachEvents() {
     document.getElementById('btn-settings-cancel')?.addEventListener('click', closeSettingsModal);
     document.getElementById('btn-settings-save')?.addEventListener('click', saveSettings);
     document.getElementById('btn-export-data')?.addEventListener('click', exportData);
-    document.getElementById('btn-import-data')?.addEventListener('click', importData);
-    document.getElementById('btn-reset-today')?.addEventListener('click', resetToday);
+    document.getElementById('btn-import-data').onclick = importData;
+    document.getElementById('btn-reset-today').onclick = resetToday;
+
+    const btnUpdate = document.getElementById('btn-force-update');
+    if (btnUpdate) btnUpdate.onclick = forceUpdateApp;
 
     // Goal mode toggles
     document.getElementById('settings-mode-revenue')?.addEventListener('click', () => {
@@ -1462,6 +1466,29 @@ function attachEvents() {
             document.getElementById('settings-unit-name').value = btn.dataset.unit;
         });
     });
+}
+
+async function forceUpdateApp() {
+    if (!confirm("🔄 บังคับอัปเดตเวอร์ชั่นใหม่?\n\nระบบจะล้างไฟล์ชั่วคราวและโหลดใหม่ทั้งหมด ข้อมูลการขายไม่หายค่ะ")) return;
+    try {
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+                await registration.unregister();
+            }
+        }
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            for (const key of keys) {
+                await caches.delete(key);
+            }
+        }
+        showToast("กำลังรีโหลด...", "info");
+        setTimeout(() => location.reload(true), 1000);
+    } catch (e) {
+        console.error("Force update failed", e);
+        location.reload(true);
+    }
 }
 
 // --- SETTINGS MODAL ---
