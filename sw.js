@@ -1,4 +1,4 @@
-const CACHE_NAME = 'micropos-v27';
+const CACHE_NAME = 'micropos-v28';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -38,37 +38,28 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch Event - Serve from cache, fallback to network
+// Fetch Event - Network first for local files, cache first for CDN
 self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+
+    // CDN resources: cache-first (they're versioned)
+    if (url.origin !== location.origin) {
+        event.respondWith(
+            caches.match(event.request).then(r => r || fetch(event.request))
+        );
+        return;
+    }
+
+    // Local files: network-first, fallback to cache
     event.respondWith(
-        caches.match(event.request)
+        fetch(event.request)
             .then((response) => {
-                // Cache hit - return response
-                if (response) {
-                    return response;
-                }
-
-                // Clone the request because it's a one-time use stream
-                const fetchRequest = event.request.clone();
-
-                return fetch(fetchRequest).then(
-                    (response) => {
-                        // Check if we received a valid response
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
-                        }
-
-                        // Clone the response because it's a one-time use stream
-                        const responseToCache = response.clone();
-
-                        caches.open(CACHE_NAME)
-                            .then((cache) => {
-                                cache.put(event.request, responseToCache);
-                            });
-
-                        return response;
-                    }
-                );
+                const responseToCache = response.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                });
+                return response;
             })
+            .catch(() => caches.match(event.request))
     );
 });
