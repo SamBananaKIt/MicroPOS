@@ -1,4 +1,4 @@
-/* ===== MicroPOS Design System v4 — Cool Navy Premium ===== */
+/* ===== MicroPOS Design System v4 - Cool Navy Premium ===== */
 
 :root {
     --bg: #F4F8FB;
@@ -261,28 +261,9 @@ body {
     color: var(--text-bright);
 }
 
-/* Big Undo Button */
+/* Big Undo Button - Hidden (using toast undo instead) */
 .big-undo-btn {
-    margin: var(--sp-xl);
-    padding: 20px;
-    background: #FFEDEA;
-    border: 2px dashed #FF8A71;
-    border-radius: var(--r-lg);
-    color: #E54B2D;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-weight: 800;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: calc(100% - 48px);
-}
-
-.big-undo-btn:active {
-    transform: scale(0.98);
-    background: #FFDFD9;
+    display: none !important;
 }
 
 /* Enhanced Bubbles */
@@ -493,7 +474,7 @@ body {
 }
 
 .carousel-slide {
-    flex: 0 0 88%;
+    flex: 0 0 100%;
     scroll-snap-align: center;
     padding: var(--sp-xl);
     min-height: 180px;
@@ -532,6 +513,23 @@ body {
     box-shadow: 0 0 10px var(--primary-glow);
 }
 
+/* Support both .dot and .carousel-dot */
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 4px;
+    background: rgba(0, 50, 80, 0.12);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+}
+
+.dot.active {
+    width: 18px;
+    background: var(--primary);
+    border-radius: 8px;
+    box-shadow: 0 0 10px var(--primary-glow);
+}
+
 /* Swipe Hint Animation */
 .swipe-hint {
     animation: swipeHintAnim 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.5s;
@@ -558,6 +556,104 @@ body {
 /* Products Section */
 .products-section {
     padding: 0 var(--sp-xl);
+    overflow: visible;
+}
+
+/* ===== Today Stats (Cashier View) ===== */
+.today-stats {
+    padding: var(--sp-lg) var(--sp-xl) 0;
+}
+
+.today-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: var(--sp-lg);
+}
+
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: var(--r-md);
+    padding: 14px 8px 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    box-shadow: 0 2px 8px rgba(0, 50, 80, 0.04);
+    transition: transform 0.2s;
+}
+
+.stat-card:active {
+    transform: scale(0.96);
+}
+
+.stat-icon {
+    font-size: 18px;
+    margin-bottom: 2px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-bright);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.stat-revenue .stat-value {
+    color: var(--primary);
+}
+
+.stat-profit .stat-value {
+    color: var(--accent-success);
+}
+
+.stat-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.today-progress {
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+}
+
+.today-progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.today-progress-header span:last-child {
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.today-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(0, 50, 80, 0.06);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.today-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-deep), var(--primary), var(--accent-success));
+    border-radius: 99px;
+    transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+    box-shadow: 0 0 12px var(--primary-glow);
 }
 
 /* Mission Card (v4) */
@@ -789,6 +885,7 @@ body {
     justify-content: center;
     gap: 28px 20px;
     padding: var(--sp-md) 0;
+    overflow: visible;
 }
 
 /* Single product item */
@@ -877,7 +974,7 @@ body {
     line-height: 1;
 }
 
-/* Hot product — softer glow, cleaner gradient */
+/* Hot product - softer glow, cleaner gradient */
 .product-item.hot .product-circle {
     border-color: rgba(0, 179, 198, 0.3);
     box-shadow: 0 8px 24px rgba(0, 179, 198, 0.12);
@@ -902,6 +999,37 @@ body {
     stroke: url(#hotGradient);
     /* We will inject an SVG def for this later or fallback to teal */
     stroke-width: 4;
+}
+
+/* Tap pulse on sale */
+.product-circle.tap-pulse {
+    animation: tapPulse 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes tapPulse {
+    0% {
+        transform: scale(1);
+    }
+
+    40% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Undo Gesture Visual */
+.product-item.undo-swipe {
+    animation: undoSwipeAnim 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes undoSwipeAnim {
+    to {
+        transform: translateX(-60px);
+        opacity: 0;
+    }
 }
 
 /* Tap visual feedback */
@@ -1305,10 +1433,10 @@ body {
 /* ===== Toast ===== */
 .toast-container {
     position: fixed;
-    bottom: 24px;
+    bottom: 100px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 100;
+    z-index: 2000;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1720,7 +1848,7 @@ body {
 }
 
 /* ==========================================================
-   RESPONSIVE DESIGN — 3 Breakpoint Adaptive Layout
+   RESPONSIVE DESIGN - 3 Breakpoint Adaptive Layout
    Mobile (<768px)  |  iPad (768-1023px)  |  Desktop (≥1024px)
    ========================================================== */
 
@@ -1739,7 +1867,7 @@ body {
         font-size: 24px;
     }
 
-    /* KPI Cards — bigger on iPad */
+    /* KPI Cards - bigger on iPad */
     .kpi-row {
         gap: var(--sp-lg);
     }
@@ -1748,7 +1876,7 @@ body {
         font-size: 28px;
     }
 
-    /* Product Grid — scale circles up, more per row */
+    /* Product Grid - scale circles up, more per row */
     .product-grid {
         grid-template-columns: repeat(auto-fill, 100px);
         gap: 28px 28px;
@@ -1777,7 +1905,7 @@ body {
         font-size: 12px;
     }
 
-    /* Analytics Carousel — taller charts */
+    /* Analytics Carousel - taller charts */
     .carousel-slide {
         min-height: 200px;
     }
@@ -1855,7 +1983,7 @@ body {
         margin-top: 0;
     }
 
-    /* Product Grid — even bigger circles */
+    /* Product Grid - even bigger circles */
     .product-grid {
         grid-template-columns: repeat(auto-fill, 104px);
         gap: 30px 30px;
@@ -1881,7 +2009,7 @@ body {
         font-size: 40px;
     }
 
-    /* Carousel — no peek needed, show full cards */
+    /* Carousel - no peek needed, show full cards */
     .carousel-slide {
         flex: 0 0 100%;
         min-height: 220px;
@@ -1896,7 +2024,7 @@ body {
         display: none;
     }
 
-    /* KPI — stretch nicely */
+    /* KPI - stretch nicely */
     .kpi-row {
         padding: 0 0 var(--sp-lg);
         gap: var(--sp-xl);
@@ -1926,7 +2054,7 @@ body {
     }
 }
 
-/* --- Wide Desktop (1280px+) — extra breathing room --- */
+/* --- Wide Desktop (1280px+) - extra breathing room --- */
 @media (min-width: 1280px) {
     #app {
         max-width: 1120px;
@@ -1946,4 +2074,80 @@ body {
         width: 90px;
         height: 90px;
     }
+}
+/* --- Two-Stage Long Press Visuals --- */
+.product-item {
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s ease;
+}
+
+.product-item.holding {
+    transform: scale(0.95);
+    filter: brightness(0.95);
+}
+
+.product-item.ready-qty {
+    transform: scale(1.05);
+    filter: brightness(1);
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.product-item.ready-edit {
+    transform: scale(1.15);
+    filter: saturate(1.5);
+    animation: urgent-pulse 0.4s infinite alternate;
+}
+
+@keyframes urgent-pulse {
+    from { transform: scale(1.15); box-shadow: 0 0 10px var(--accent); }
+    to { transform: scale(1.2); box-shadow: 0 0 25px var(--accent); }
+}
+
+/* --- Heatmap Detail Enhanced --- */
+.heatmap-detail-box {
+    margin-top: var(--sp-lg);
+    padding: var(--sp-md);
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: var(--r-lg);
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 1px dashed var(--card-border);
+    transition: all 0.3s ease;
+}
+
+.h-detail-time { 
+    font-size: 10px; 
+    color: var(--text-muted); 
+    font-weight: 700; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.h-detail-main { 
+    font-size: 18px; 
+    font-weight: 900; 
+    color: var(--primary); 
+    margin: 2px 0;
+}
+
+.h-detail-sub { 
+    font-size: 12px; 
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.heat-cell {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.heat-cell:active {
+    transform: scale(0.9);
+}
+
+.heat-cell.selected {
+    box-shadow: 0 0 0 2px var(--primary);
+    position: relative;
+    z-index: 2;
 }

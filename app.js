@@ -1,5 +1,5 @@
 /**
- * MicroPOS v3 — Circular Grid + Image Upload
+ * MicroPOS v3 - Circular Grid + Image Upload
  */
 
 const DB_NAME = 'micropos_db';
@@ -12,7 +12,7 @@ let products = [];
 let todayStr = '';
 let todayTx = [];
 let todaySalesByProduct = {};
-let lastTransactionIds = [];
+let undoStack = []; // Stack of transaction ID lists for multi-level undo
 let undoTimeout = null;
 let currentView = 'cashier';
 let lastShakeTime = 0;
@@ -175,70 +175,35 @@ async function loadTodaySalesData() {
 
 // --- SELL & UNDO ---
 async function undoLastSale() {
-    if (!lastTransactionIds.length) return;
+    if (!undoStack.length) return;
 
     // Clear toast immediately
     const toastContainer = document.getElementById('toast-container');
     if (toastContainer) toastContainer.innerHTML = '';
 
+    const idsToUndo = undoStack.pop();
+    if (!idsToUndo || !idsToUndo.length) return;
+
     try {
         const idbTx = db.transaction(['transactions', 'dailyRecords'], 'readwrite');
         const txStore = idbTx.objectStore('transactions');
 
-        let removedQty = 0;
-        let removedRev = 0;
-        let removedCost = 0;
-        let removedProfit = 0;
-        let productId = null;
-
-        for (const tid of lastTransactionIds) {
-            const req = txStore.get(tid);
-            req.onsuccess = (e) => {
-                const txRecord = e.target.result;
-                if (txRecord) {
-                    productId = txRecord.product_id;
-                    removedQty += 1;
-                    removedRev += txRecord.total_revenue;
-                    removedCost += txRecord.total_cost;
-                    removedProfit += txRecord.profit;
-                    txStore.delete(tid);
-                }
-            };
+        for (const tid of idsToUndo) {
+            txStore.delete(tid);
         }
 
         idbTx.oncomplete = async () => {
-            if (!removedQty) return;
-
-            dailyState.total_qty -= removedQty;
-            dailyState.total_revenue -= removedRev;
-            dailyState.total_cost -= removedCost;
-            dailyState.total_profit -= removedProfit;
-            dailyState.goal_progress = profile.settings.daily_goal_mode === 'revenue' ? dailyState.total_revenue : dailyState.total_qty;
-
-            if (productId && todaySalesByProduct[productId]) {
-                todaySalesByProduct[productId].count = Math.max(0, todaySalesByProduct[productId].count - removedQty);
-                todaySalesByProduct[productId].revenue = Math.max(0, todaySalesByProduct[productId].revenue - removedRev);
-            }
-
-            await idbOp('dailyRecords', 'readwrite', s => s.put(dailyState));
-
-            // Re-render everything from fresh DB fetch to accurately update charts
-            lastTransactionIds = [];
-            await loadProducts(); // Re-calculates todaySalesByProduct properly from DB
-            renderProductGrid();
-            if (!editMode) applyPopularityScaling();
-            updateKPIs();
-            updateMissionUI();
-            updateTopTicker();
-            updateLiveRanking();
-            renderCharts();
-
-            showToast("ยกเลิกรายการสำเร็จ ↩️");
+            // Re-render everything from fresh DB fetch
+            await loadTodayData();
+            renderUI();
+            if (typeof Chart !== 'undefined') renderCharts();
+            showToast("ยกเลิกรายการสำเร็จ ↩️", "info");
             const bigUndo = document.getElementById('btn-big-undo');
             if (bigUndo) bigUndo.style.display = 'none';
         };
     } catch (e) {
         console.error("Undo failed", e);
+        showToast("ไม่สามารถยกเลิกได้", "error");
     }
 }
 
@@ -247,7 +212,7 @@ async function sellProduct(productId, qty = 1) {
     if (!prod) return;
 
     if (undoTimeout) clearTimeout(undoTimeout);
-    lastTransactionIds = [];
+    const sessionIds = [];
 
     for (let i = 0; i < qty; i++) {
         const tx = { tx_id: generateId(), product_id: prod.product_id, quantity: 1, unit_price: Number(prod.price), unit_cost: Number(prod.cost), total_revenue: Number(prod.price), total_cost: Number(prod.cost), profit: Number(prod.price) - Number(prod.cost), timestamp: new Date().toISOString(), date: todayStr };
@@ -267,7 +232,7 @@ async function sellProduct(productId, qty = 1) {
             const idbTx = db.transaction(['transactions', 'dailyRecords'], 'readwrite');
             idbTx.objectStore('transactions').add(tx);
             idbTx.objectStore('dailyRecords').put(dailyState);
-            lastTransactionIds.push(tx.tx_id);
+            sessionIds.push(tx.tx_id);
             todayTx.push(tx);
         } catch (e) { console.error("DB write failed", e); }
 
@@ -275,12 +240,42 @@ async function sellProduct(productId, qty = 1) {
     }
 
     syncLocalCache();
-    updateKPIs();
-    updateMissionUI();
-    updateIntelligence();
-    applyPopularityScaling();
-    updateTopTicker();
-    updateLiveRanking();
+    try {
+        updateKPIs();
+        updateMissionUI();
+        updateIntelligence();
+        applyPopularityScaling();
+        updateTopTicker();
+        updateLiveRanking();
+        updateCashierStats();
+    } catch (e) {
+        console.error("Non-critical UI update failed", e);
+    }
+    undoStack.push(sessionIds);
+
+    // Animate ring for tapped product
+    const CIRC = 2 * Math.PI * 40;
+    const maxC = Math.max(...Object.values(todaySalesByProduct).map(s => s.count), 1);
+    const pids = [productId]; // Use the single productId from arguments
+    pids.forEach(pid => {
+        const el = document.querySelector(`.product-item[data-product-id="${pid}"]`);
+        if (!el) return;
+        const ring = el.querySelector('.ring-fill');
+        if (ring) {
+            const c = todaySalesByProduct[pid]?.count || 0;
+            const pct = c / maxC;
+            ring.style.strokeDashoffset = CIRC * (1 - pct);
+            ring.style.stroke = 'var(--primary)';
+            ring.style.strokeWidth = '5';
+        }
+        // Pulse effect on circle
+        const circle = el.querySelector('.product-circle');
+        if (circle) {
+            circle.classList.remove('tap-pulse');
+            void circle.offsetWidth;
+            circle.classList.add('tap-pulse');
+        }
+    });
 
     // v4 UX: Show Big Undo
     const bigUndo = document.getElementById('btn-big-undo');
@@ -293,7 +288,7 @@ async function sellProduct(productId, qty = 1) {
         }, 8000);
     }
 
-    showToast(`${prod.name} x${qty} ✓`, "success", true);
+    showToast(`${prod.name} x${qty} \u2713`, "success", true);
     if (navigator.vibrate) navigator.vibrate(40);
 
     // Bounce KPI
@@ -307,15 +302,47 @@ function renderUI() {
     renderProductGrid();
     updateKPIs(false);
     updateMissionUI();
+    updateCashierStats();
     applyPopularityScaling();
     updateTopTicker();
     updateLiveRanking();
+}
+
+function updateCashierStats() {
+    const rev = document.getElementById('cashier-revenue');
+    const qty = document.getElementById('cashier-qty');
+    const profit = document.getElementById('cashier-profit');
+    const streak = document.getElementById('cashier-streak');
+    const pct = document.getElementById('cashier-goal-pct');
+    const fill = document.getElementById('cashier-goal-fill');
+
+    if (rev) rev.textContent = `฿${dailyState.total_revenue.toLocaleString()}`;
+    if (qty) qty.textContent = dailyState.total_qty.toLocaleString();
+    if (profit) profit.textContent = `฿${(dailyState.total_profit || 0).toLocaleString()}`;
+    if (streak) streak.textContent = dailyState.streak_count;
+
+    const goalPct = Math.min((dailyState.goal_progress / dailyState.goal_value) * 100, 100);
+    if (pct) pct.textContent = `${Math.round(goalPct)}%`;
+    if (fill) fill.style.width = `${goalPct}%`;
 }
 
 function renderProductGrid() {
     const grid = document.getElementById('product-grid');
     grid.innerHTML = '';
     const CIRC = 2 * Math.PI * 40;
+
+    // Pre-calculate scaling data
+    let maxProfit = 0, topProfitId = null, maxCount = 1;
+    for (const id in todaySalesByProduct) {
+        if (todaySalesByProduct[id].profit > maxProfit) {
+            maxProfit = todaySalesByProduct[id].profit;
+            topProfitId = id;
+        }
+        if (todaySalesByProduct[id].count > maxCount) {
+            maxCount = todaySalesByProduct[id].count;
+        }
+    }
+    if (maxProfit === 0) maxProfit = 1;
 
     // Sort products based on dropdown
     const sortMode = document.getElementById('product-sort')?.value || 'default';
@@ -341,12 +368,27 @@ function renderProductGrid() {
         const salesCount = salesData ? salesData.count : 0;
         const profit = salesData ? salesData.profit : 0;
         const trend = intelligenceData.trends[p.product_id] || { dod: 0, status: 'Stable' };
+        const isHot = (p.product_id === topProfitId && maxProfit > 0);
+
+        // Calculate scale
+        const scale = 1 + (profit / maxProfit) * 0.3;
+
+        // Calculate ring fill
+        const ringPct = salesCount / maxCount;
+        const ringOffset = CIRC * (1 - ringPct);
+        const ringStroke = isHot ? 'var(--primary)' : 'rgba(0, 179, 198, 0.4)';
+        const ringWidth = isHot ? 5 : 3.5;
 
         const item = document.createElement('div');
-        item.className = 'product-item';
+        item.className = 'product-item' + (isHot ? ' hot' : '');
         item.dataset.productId = p.product_id;
         item.setAttribute('role', 'listitem');
-        item.setAttribute('aria-label', `${p.name} ราคา ${p.price} บาท`);
+        item.setAttribute('aria-label', `${p.name} \u0e23\u0e32\u0e04\u0e32 ${p.price} \u0e1a\u0e32\u0e17`);
+
+        // Apply scaling directly
+        if (salesCount > 0) {
+            item.style.transform = `scale(${scale})`;
+        }
 
         let circleInner;
         if (p.image) {
@@ -358,27 +400,35 @@ function renderProductGrid() {
         const saleBadge = `<span class="sale-count" style="display: ${salesCount > 0 ? 'flex' : 'none'}">${salesCount}</span>`;
 
         // Trend Tag
-        const trendIcon = trend.dod >= 0 ? '▲' : '▼';
+        const trendIcon = trend.dod >= 0 ? '\u25b2' : '\u25bc';
         const trendColor = trend.dod >= 0 ? 'var(--primary)' : '#EF4444';
         const trendHTML = salesCount > 0 ? `<div class="trend-indicator" style="color: ${trendColor}">${trendIcon} ${Math.abs(trend.dod)}%</div>` : '';
         const statusHTML = trend.status !== 'Stable' ? `<div class="status-tag ${trend.status.toLowerCase()}">${trend.status}</div>` : '';
 
-        // Activity ring SVG
+        // Hot badge
+        const hotBadgeHTML = isHot ? `<span class="hot-badge">\ud83d\udd25 #1 Profit</span>` : '';
+
+        // Activity ring SVG with pre-filled values
         const ringSVG = `<svg class="activity-ring" viewBox="0 0 88 88">
             <circle class="ring-bg" cx="44" cy="44" r="40"/>
-            <circle class="ring-fill" cx="44" cy="44" r="40" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC}" data-circ="${CIRC}"/>
+            <circle class="ring-fill" cx="44" cy="44" r="40"
+                stroke-dasharray="${CIRC}"
+                stroke-dashoffset="${salesCount > 0 ? ringOffset : CIRC}"
+                data-circ="${CIRC}"
+                style="stroke: ${salesCount > 0 ? ringStroke : 'transparent'}; stroke-width: ${ringWidth}px;"/>
         </svg>`;
 
         item.innerHTML = `
             <div class="product-circle-wrap">
                 ${ringSVG}
-                <div class="product-circle">${circleInner}${editMode ? '<div class="edit-overlay">✏️</div>' : ''}</div>
+                <div class="product-circle">${circleInner}${editMode ? '<div class="edit-overlay">\u270f\ufe0f</div>' : ''}</div>
                 ${saleBadge}
                 ${trendHTML}
                 ${statusHTML}
             </div>
             <span class="product-label">${p.name}</span>
-            <span class="product-price-tag">฿${p.price}</span>
+            <span class="product-price-tag">\u0e3f${p.price}</span>
+            ${hotBadgeHTML}
         `;
 
         grid.appendChild(item);
@@ -424,8 +474,10 @@ function updateKPIs(animate = true) {
     }
 
     if (animate && revEl && qtyEl) {
-        animateValue(revEl, Number(revEl.innerText.replace(/,/g, '') || 0), dailyState.total_revenue, 500);
-        animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '') || 0), dailyState.total_qty, 300);
+        const startRev = parseFloat(revEl.innerText.replace(/[^0-9.]/g, '') || 0);
+        const startQty = parseFloat(qtyEl.innerText.replace(/[^0-9.]/g, '') || 0);
+        animateValue(revEl, startRev, dailyState.total_revenue, 500);
+        animateValue(qtyEl, startQty, dailyState.total_qty, 300);
     } else {
         if (revEl) revEl.innerText = dailyState.total_revenue.toLocaleString();
         if (qtyEl) qtyEl.innerText = dailyState.total_qty.toLocaleString();
@@ -483,8 +535,8 @@ function applyPopularityScaling() {
         const pVal = todaySalesByProduct[pid]?.profit || 0;
         const c = todaySalesByProduct[pid]?.count || 0;
 
-        // Scale circle by Profit proportionality (v4 boost)
-        const scale = 1 + (pVal / maxP) * 0.25;
+        // Scale circle by Profit proportionality
+        const scale = 1 + (pVal / maxP) * 0.3;
         item.style.transform = `scale(${scale})`;
 
         // Activity ring: still based on sales frequency for "momentum" feel
@@ -495,6 +547,11 @@ function applyPopularityScaling() {
             const maxC = Math.max(...counts, 1);
             const pct = c / maxC;
             ringFill.style.strokeDashoffset = circ * (1 - pct);
+            // Make ring visible with color based on activity
+            if (c > 0) {
+                ringFill.style.stroke = pid === topId ? 'var(--primary)' : 'rgba(0, 179, 198, 0.4)';
+                ringFill.style.strokeWidth = pid === topId ? '5' : '3.5';
+            }
         }
 
         // Badges
@@ -612,13 +669,43 @@ function initCarousel() {
     const dots = document.querySelectorAll('.dot');
     if (!c || !dots.length) return;
 
-    c.addEventListener('scroll', () => {
+    const updateDots = () => {
         const idx = Math.round(c.scrollLeft / (c.offsetWidth || 1));
         dots.forEach((d, i) => d.classList.toggle('active', i === idx));
-    });
+    };
+
+    c.addEventListener('scroll', updateDots, { passive: true });
+
+    // Explicit click for dots
     dots.forEach((d, i) => {
-        d.onclick = () => c.scrollTo({ left: i * c.offsetWidth, behavior: 'smooth' });
+        d.onclick = () => {
+            c.scrollTo({ left: i * c.offsetWidth, behavior: 'smooth' });
+            if (navigator.vibrate) navigator.vibrate(5);
+        };
     });
+
+    // Manual Touch support for robustness
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    c.addEventListener('mousedown', (e) => {
+        isDown = true;
+        startX = e.pageX - c.offsetLeft;
+        scrollLeft = c.scrollLeft;
+    });
+    c.addEventListener('mouseleave', () => isDown = false);
+    c.addEventListener('mouseup', () => isDown = false);
+    c.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - c.offsetLeft;
+        const walk = (x - startX) * 2;
+        c.scrollLeft = scrollLeft - walk;
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', updateDots);
 }
 
 // --- NAVIGATION & GESTURES ---
@@ -647,7 +734,7 @@ function initGestures() {
             const total = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
             const now = Date.now();
             if (total > SHAKE_THRESHOLD && (now - lastShakeTime > 2000)) {
-                if (lastTransactionIds.length > 0) {
+                if (undoStack.length > 0) {
                     lastShakeTime = now;
                     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
                     undoLastSale();
@@ -691,7 +778,7 @@ async function undoProductSale(productId) {
     const txs = todayTx.filter(t => t.product_id === productId);
     if (txs.length === 0) return;
     const lastTx = txs[txs.length - 1];
-    lastTransactionIds = [lastTx.tx_id];
+    undoStack.push([lastTx.tx_id]);
     await undoLastSale();
 }
 
@@ -874,11 +961,15 @@ async function updateIntelligence() {
         };
     });
 
-    // 4. Heatmap
-    intelligenceData.heatmap = new Array(24).fill(0);
+    // 4. Heatmap (Advanced Aggregation)
+    intelligenceData.heatmap = Array.from({ length: 24 }, () => ({ count: 0, products: {} }));
     todayTx.forEach(t => {
         const hr = new Date(t.timestamp).getHours();
-        intelligenceData.heatmap[hr]++;
+        const hourData = intelligenceData.heatmap[hr];
+        if (hourData) {
+            hourData.count++;
+            hourData.products[t.name] = (hourData.products[t.name] || 0) + (t.quantity || 1);
+        }
     });
 
     renderHeatmap();
@@ -887,15 +978,50 @@ async function updateIntelligence() {
 
 function renderHeatmap() {
     const container = document.getElementById('heat-map-container');
+    const infoBox = document.getElementById('heatmap-detail-box');
     if (!container) return;
     container.innerHTML = '';
-    const max = Math.max(...intelligenceData.heatmap, 1);
-    intelligenceData.heatmap.forEach((val, hr) => {
+
+    const counts = intelligenceData.heatmap.map(h => h.count);
+    const max = Math.max(...counts, 1);
+
+    intelligenceData.heatmap.forEach((data, hr) => {
         const cell = document.createElement('div');
         cell.className = 'heat-cell';
-        const opacity = (val / max);
+        const opacity = (data.count / max);
         cell.style.background = `rgba(20, 224, 138, ${0.1 + opacity * 0.9})`;
-        cell.setAttribute('data-time', `${hr}:00`);
+
+        cell.onclick = () => {
+            // Find top product for this hour
+            let topProd = 'ไม่ระบุสินค้า';
+            let maxQty = 0;
+            for (const [name, qty] of Object.entries(data.products)) {
+                if (qty > maxQty) {
+                    maxQty = qty;
+                    topProd = name;
+                }
+            }
+
+            if (infoBox) {
+                if (data.count > 0) {
+                    infoBox.innerHTML = `
+                        <div class="h-detail-time">${hr}:00 - ${hr + 1}:00</div>
+                        <div class="h-detail-main">${topProd}</div>
+                        <div class="h-detail-sub">ขายได้ ${maxQty} ชิ้น (รวม ${data.count} ออเดอร์)</div>
+                     `;
+                } else {
+                    infoBox.innerHTML = `
+                        <div class="h-detail-time">${hr}:00 - ${hr + 1}:00</div>
+                        <div class="h-detail-main" style="color:var(--text-muted)">ไม่มีรายการขาย</div>
+                     `;
+                }
+            }
+
+            document.querySelectorAll('.heat-cell').forEach(c => c.classList.remove('selected'));
+            cell.classList.add('selected');
+            if (navigator.vibrate) navigator.vibrate(10);
+        };
+
         container.appendChild(cell);
     });
 }
@@ -1175,42 +1301,99 @@ let longPressTriggered = false;
 function attachEvents() {
     const grid = document.getElementById('product-grid');
 
-    // Tap & Long Press handling
+    // Tap, Long-Press (Qty), and Very-Long-Press (Edit) logic
+    let startX = 0, startY = 0;
+    let editTriggered = false;
+    let qtyTriggered = false;
+    let editTimer = null;
+
     grid.addEventListener('pointerdown', (e) => {
         const item = e.target.closest('.product-item');
         if (!item || editMode) return;
 
         const id = item.dataset.productId;
-        longPressTriggered = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        qtyTriggered = false;
+        editTriggered = false;
 
-        // Visual tap feedback
-        item.classList.add('tapped');
+        item.classList.add('holding');
 
+        // Stage 1: 500ms (Ready for Qty)
         longPressTimer = setTimeout(() => {
-            longPressTriggered = true;
-            item.classList.remove('tapped');
-            const qty = parseInt(prompt("จำนวนที่ต้องการขาย:", "5"));
-            if (!isNaN(qty) && qty > 0) sellProduct(id, qty);
+            qtyTriggered = true;
+            if (navigator.vibrate) navigator.vibrate(30);
+            item.classList.add('ready-qty');
         }, 500);
+
+        // Stage 2: 1500ms (Instant Edit)
+        editTimer = setTimeout(() => {
+            editTriggered = true;
+            item.classList.remove('holding', 'ready-qty');
+            item.classList.add('ready-edit');
+            if (navigator.vibrate) navigator.vibrate([60, 30, 60]);
+
+            // Clean up timers
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+
+            // Open Edit Modal directly
+            openProductModal(id);
+        }, 1500);
     });
 
     grid.addEventListener('pointerup', (e) => {
         const item = e.target.closest('.product-item');
-        if (item) item.classList.remove('tapped');
-
-        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-
-        if (!longPressTriggered && !editMode) {
-            const itm = e.target.closest('.product-item');
-            if (itm && itm.dataset.productId) sellProduct(itm.dataset.productId, 1);
+        if (!item) {
+            clearTimers();
+            return;
         }
+
+        // Cleanup visuals
+        item.classList.remove('holding', 'ready-qty', 'ready-edit');
+
+        if (editTriggered) {
+            clearTimers();
+            return; // Already handled by timer
+        }
+
+        const diffX = startX - e.clientX;
+        const diffY = startY - e.clientY;
+        const moved = Math.sqrt(diffX * diffX + diffY * diffY) > 20;
+
+        if (moved) {
+            if (diffX > 60 && !editMode) {
+                undoProductSale(item.dataset.productId);
+            }
+            clearTimers();
+            return;
+        }
+
+        if (qtyTriggered) {
+            // Trigger Qty Prompt on release if held > 500ms but < 1500ms
+            const id = item.dataset.productId;
+            const qty = parseInt(prompt("จำนวนที่ต้องการขาย:", "5"));
+            if (!isNaN(qty) && qty > 0) sellProduct(id, qty);
+        } else {
+            // Single Tap
+            if (!editMode) sellProduct(item.dataset.productId, 1);
+        }
+
+        clearTimers();
     });
 
     grid.addEventListener('pointerleave', () => {
-        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-    }, true);
+        clearTimers();
+        const items = grid.querySelectorAll('.product-item');
+        items.forEach(it => it.classList.remove('holding', 'ready-qty', 'ready-edit'));
+    });
 
-    // Edit mode tap
+    function clearTimers() {
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        if (editTimer) { clearTimeout(editTimer); editTimer = null; }
+    }
+
+    // Gear button: tap = Settings, long-press = Global Edit Mode
     grid.addEventListener('click', (e) => {
         if (!editMode) return;
         const item = e.target.closest('.product-item');
@@ -1406,3 +1589,48 @@ function showToast(msg, type = "info", showUndo = false) {
     if (showUndo) undoTimeout = timeout;
 }
 
+
+// --- SIMULATION (For Academic Demo) ---
+async function seedHourlySimulation() {
+    if (!confirm("⚠️ ต้องการจำลองข้อมูลรายชั่วโมง (08:00 - ปัจจุบัน) เพื่อการทดสอบหรือไม่?")) return;
+    try {
+        const prodList = await idbOp('products', 'readonly', s => s.getAll());
+        if (prodList.length === 0) { showToast("กรุณาเพิ่มสินค้าก่อนจำลองข้อมูล", "error"); return; }
+
+        const now = new Date();
+        const currentHour = now.getHours();
+        const startTime = 8; // Start at 8 AM
+
+        for (let h = startTime; h <= currentHour; h++) {
+            // Pick a "Top Seller" for this specific hour (Randomly)
+            const hourProduct = prodList[Math.floor(Math.random() * prodList.length)];
+            const baseQty = Math.floor(Math.random() * 5) + 3; // 3-8 units
+
+            for (let i = 0; i < baseQty; i++) {
+                const txDate = new Date();
+                txDate.setHours(h, Math.floor(Math.random() * 60), Math.floor(Math.random() * 60));
+
+                const tx = {
+                    tx_id: crypto.randomUUID(),
+                    product_id: hourProduct.product_id,
+                    name: hourProduct.name,
+                    price: hourProduct.price,
+                    cost: hourProduct.cost,
+                    quantity: 1,
+                    timestamp: txDate.getTime(),
+                    date: todayStr
+                };
+                await idbOp('transactions', 'readwrite', s => s.put(tx));
+            }
+        }
+
+        await loadTodaySalesData();
+        await initDailyState();
+        renderUI();
+        renderCharts();
+        showToast("จำลองข้อมูลรายชั่วโมงเรียบร้อย ✅");
+    } catch (e) {
+        console.error("Simulation failed:", e); window.seedHourlySimulation = seedHourlySimulation;
+        showToast("จำลองล้มเหลว", "error");
+    }
+}
