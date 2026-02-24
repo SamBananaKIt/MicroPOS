@@ -58,6 +58,14 @@
                 <span class="kpi-label">Streak</span>
                 <span class="kpi-value" id="kpi-streak">🔥 0</span>
             </div>
+            <div class="kpi-card kpi-efficiency">
+                <span class="kpi-label">Efficiency</span>
+                <span class="kpi-value" id="kpi-efficiency">100%</span>
+            </div>
+            <div class="kpi-card kpi-projection">
+                <span class="kpi-label">Projected</span>
+                <span class="kpi-value" id="kpi-projection">฿0</span>
+            </div>
         </div>
 
         <!-- Main Content -->
@@ -101,6 +109,14 @@
                             <span class="slide-label">📈 7 วันย้อนหลัง</span>
                             <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
                         </div>
+                        <div class="carousel-slide">
+                            <div class="chart-header">
+                                <span class="chart-title">Time Heatmap (24h)</span>
+                            </div>
+                            <div id="heat-map-container" class="heat-map">
+                                <!-- JS injects 24 cells -->
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="carousel-dots" id="carousel-dots">
@@ -108,6 +124,7 @@
                     <div class="carousel-dot" data-idx="1"></div>
                     <div class="carousel-dot" data-idx="2"></div>
                     <div class="carousel-dot" data-idx="3"></div>
+                    <div class="carousel-dot" data-idx="4"></div>
                 </div>
             </section>
 

@@ -10,7 +10,14 @@ let profile = { id: 'default_user', shop_name: 'ร้านค้าของ�
 let dailyState = { date: '', total_qty: 0, total_revenue: 0, goal_value: 1000, goal_progress: 0, streak_count: 0 };
 let products = [];
 let todayStr = '';
+let todayTx = [];
 let todaySalesByProduct = {};
+let intelligenceData = {
+    efficiency: 100,
+    projected: 0,
+    trends: {}, // product_id -> { dod, avg7, status }
+    heatmap: new Array(24).fill(0)
+};
 let chartPie = null, chartHourly = null, chartWeekly = null;
 let editMode = false;
 
@@ -109,10 +116,35 @@ async function initDailyState() {
             avgBase = sample.reduce((a, v) => a + (profile.settings.daily_goal_mode === 'revenue' ? v.total_revenue : v.total_qty), 0) / sample.length;
         }
         if (avgBase < 100) avgBase = 500;
-        dailyState = { date: todayStr, total_qty: 0, total_revenue: 0, total_cost: 0, total_profit: 0, goal_value: Math.max(10, Math.round(avgBase * (0.85 + Math.random() * 0.3))), goal_progress: 0, streak_count: streak };
+        dailyState = {
+            date: todayStr,
+            total_qty: 0,
+            total_revenue: 0,
+            total_cost: 0,
+            total_profit: 0,
+            goal_value: Math.max(10, Math.round(avgBase * (0.85 + Math.random() * 0.3))),
+            goal_progress: 0,
+            streak_count: streak
+        };
         await idbOp('dailyRecords', 'readwrite', s => s.put(dailyState));
     }
+    await loadTodayData();
     syncLocalCache();
+    updateIntelligence();
+}
+
+async function loadTodayData() {
+    const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
+    todayTx = allTx.filter(t => t.date === todayStr);
+    todaySalesByProduct = {};
+    todayTx.forEach(t => {
+        const pid = t.product_id;
+        const p = products.find(x => x.product_id === pid);
+        if (!todaySalesByProduct[pid]) todaySalesByProduct[pid] = { count: 0, revenue: 0, profit: 0, name: p?.name || '?' };
+        todaySalesByProduct[pid].count++;
+        todaySalesByProduct[pid].revenue += t.total_revenue;
+        todaySalesByProduct[pid].profit += (t.profit || 0);
+    });
 }
 
 function syncLocalCache() { localStorage.setItem(`dailyState_${todayStr}`, JSON.stringify(dailyState)); }
@@ -226,15 +258,17 @@ async function sellProduct(productId, qty = 1) {
         dailyState.total_profit += tx.profit;
         dailyState.goal_progress = profile.settings.daily_goal_mode === 'revenue' ? dailyState.total_revenue : dailyState.total_qty;
 
-        if (!todaySalesByProduct[productId]) todaySalesByProduct[productId] = { count: 0, revenue: 0, name: prod.name };
+        if (!todaySalesByProduct[productId]) todaySalesByProduct[productId] = { count: 0, revenue: 0, profit: 0, name: prod.name };
         todaySalesByProduct[productId].count += 1;
         todaySalesByProduct[productId].revenue += tx.total_revenue;
+        todaySalesByProduct[productId].profit += tx.profit;
 
         try {
             const idbTx = db.transaction(['transactions', 'dailyRecords'], 'readwrite');
             idbTx.objectStore('transactions').add(tx);
             idbTx.objectStore('dailyRecords').put(dailyState);
             lastTransactionIds.push(tx.tx_id);
+            todayTx.push(tx);
         } catch (e) { console.error("DB write failed", e); }
 
         updateChartsOnSale(tx);
@@ -243,6 +277,7 @@ async function sellProduct(productId, qty = 1) {
     syncLocalCache();
     updateKPIs();
     updateMissionUI();
+    updateIntelligence();
     applyPopularityScaling();
     updateTopTicker();
     updateLiveRanking();
@@ -292,6 +327,8 @@ function renderProductGrid() {
         const emoji = p.emoji || PRODUCT_EMOJIS[i % PRODUCT_EMOJIS.length];
         const salesData = todaySalesByProduct[p.product_id];
         const salesCount = salesData ? salesData.count : 0;
+        const profit = salesData ? salesData.profit : 0;
+        const trend = intelligenceData.trends[p.product_id] || { dod: 0, status: 'Stable' };
 
         const item = document.createElement('div');
         item.className = 'product-item';
@@ -308,33 +345,29 @@ function renderProductGrid() {
 
         const saleBadge = `<span class="sale-count" style="display: ${salesCount > 0 ? 'flex' : 'none'}">${salesCount}</span>`;
 
-        // Activity ring SVG: starts at 0%, updated by applyPopularityScaling
+        // Trend Tag
+        const trendIcon = trend.dod >= 0 ? '▲' : '▼';
+        const trendColor = trend.dod >= 0 ? 'var(--primary)' : '#EF4444';
+        const trendHTML = salesCount > 0 ? `<div class="trend-indicator" style="color: ${trendColor}">${trendIcon} ${Math.abs(trend.dod)}%</div>` : '';
+        const statusHTML = trend.status !== 'Stable' ? `<div class="status-tag ${trend.status.toLowerCase()}">${trend.status}</div>` : '';
+
+        // Activity ring SVG
         const ringSVG = `<svg class="activity-ring" viewBox="0 0 88 88">
             <circle class="ring-bg" cx="44" cy="44" r="40"/>
             <circle class="ring-fill" cx="44" cy="44" r="40" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC}" data-circ="${CIRC}"/>
         </svg>`;
 
-        if (editMode) {
-            item.innerHTML = `
-                <div class="product-circle-wrap">
-                    ${ringSVG}
-                    <div class="product-circle">${circleInner}<div class="edit-overlay">✏️</div></div>
-                    ${saleBadge}
-                </div>
-                <span class="product-label">${p.name}</span>
-                <span class="product-price-tag">฿${p.price}</span>
-            `;
-        } else {
-            item.innerHTML = `
-                <div class="product-circle-wrap">
-                    ${ringSVG}
-                    <div class="product-circle">${circleInner}</div>
-                    ${saleBadge}
-                </div>
-                <span class="product-label">${p.name}</span>
-                <span class="product-price-tag">฿${p.price}</span>
-            `;
-        }
+        item.innerHTML = `
+            <div class="product-circle-wrap">
+                ${ringSVG}
+                <div class="product-circle">${circleInner}${editMode ? '<div class="edit-overlay">✏️</div>' : ''}</div>
+                ${saleBadge}
+                ${trendHTML}
+                ${statusHTML}
+            </div>
+            <span class="product-label">${p.name}</span>
+            <span class="product-price-tag">฿${p.price}</span>
+        `;
 
         grid.appendChild(item);
     });
@@ -346,6 +379,16 @@ function updateKPIs(animate = true) {
     const streakEl = document.getElementById('kpi-streak');
     const unitEl = document.getElementById('kpi-unit-name');
     if (unitEl) unitEl.textContent = profile.settings.unit_name || 'ชิ้น';
+    const effEl = document.getElementById('kpi-efficiency');
+    if (effEl) {
+        const val = intelligenceData.efficiency;
+        effEl.querySelector('.kpi-value').textContent = `${Math.round(val)}%`;
+        effEl.querySelector('.kpi-value').style.color = val >= 100 ? '#14e08a' : '#94a3b8';
+    }
+    const projEl = document.getElementById('kpi-projection');
+    if (projEl) {
+        projEl.querySelector('.kpi-value').textContent = `฿${Math.round(intelligenceData.projected).toLocaleString()}`;
+    }
     if (animate) {
         animateValue(revEl, Number(revEl.innerText.replace(/,/g, '')), dailyState.total_revenue, 500);
         animateValue(qtyEl, Number(qtyEl.innerText.replace(/,/g, '')), dailyState.total_qty, 300);
@@ -380,55 +423,57 @@ function updateMissionUI() {
     }
 }
 
-// --- POPULARITY SCALING + ACTIVITY RING ---
+// --- POPULARITY SCALING (PROFIT-BASED) + ACTIVITY RING ---
 function applyPopularityScaling() {
     if (editMode) return;
     const items = document.querySelectorAll('.product-item');
     if (!items.length) return;
 
-    // 1. Find the highest count globally today
-    let maxC = 0;
+    // 1. Find the highest profit globally today
+    let maxP = 0;
     let topId = null;
     for (const id in todaySalesByProduct) {
-        if (todaySalesByProduct[id].count > maxC) {
-            maxC = todaySalesByProduct[id].count;
+        if (todaySalesByProduct[id].profit > maxP) {
+            maxP = todaySalesByProduct[id].profit;
             topId = id;
         }
     }
-    if (maxC === 0) maxC = 1; // Prevent division by zero
+    if (maxP === 0) maxP = 1;
 
     items.forEach((item) => {
         const pid = item.dataset.productId;
+        const pVal = todaySalesByProduct[pid]?.profit || 0;
         const c = todaySalesByProduct[pid]?.count || 0;
 
-        // Soft scaling: 10-15% max
-        const scale = 1 + (c / maxC) * 0.12;
+        // Scale circle by Profit proportionality
+        const scale = 1 + (pVal / maxP) * 0.15;
         item.style.transform = `scale(${scale})`;
 
-        // Activity ring: fill proportional to sales ratio
+        // Activity ring: still based on sales frequency for "momentum" feel
         const ringFill = item.querySelector('.ring-fill');
         if (ringFill) {
             const circ = parseFloat(ringFill.dataset.circ);
+            const counts = Object.values(todaySalesByProduct).map(s => s.count);
+            const maxC = Math.max(...counts, 1);
             const pct = c / maxC;
             ringFill.style.strokeDashoffset = circ * (1 - pct);
         }
 
-        // Remove old badges
+        // Badges
         item.querySelector('.hot-badge')?.remove();
         item.classList.remove('hot');
 
-        // Update sale count badge
         const badge = item.querySelector('.sale-count');
         if (badge) {
             badge.textContent = c;
             badge.style.display = c > 0 ? 'flex' : 'none';
         }
 
-        if (pid === topId && maxC > 0) {
+        if (pid === topId && maxP > 0) {
             item.classList.add('hot');
             const hb = document.createElement('span');
             hb.className = 'hot-badge';
-            hb.textContent = '🔥 #1';
+            hb.textContent = '🔥 #1 Profit';
             item.appendChild(hb);
         }
     });
@@ -464,20 +509,20 @@ function updateLiveRanking() {
     const list = document.getElementById('ranking-list');
     if (!section || !list) return;
 
-    // Build sorted ranking
+    // Build sorted ranking by PROFIT
     const ranked = [];
     for (const id in todaySalesByProduct) {
-        ranked.push({ id, name: todaySalesByProduct[id].name, count: todaySalesByProduct[id].count, revenue: todaySalesByProduct[id].revenue });
+        ranked.push({ id, name: todaySalesByProduct[id].name, count: todaySalesByProduct[id].count, profit: todaySalesByProduct[id].profit });
     }
-    ranked.sort((a, b) => b.count - a.count);
+    ranked.sort((a, b) => b.profit - a.profit);
 
-    if (ranked.length === 0 || ranked[0].count === 0) {
+    if (ranked.length === 0 || ranked[0].profit === 0) {
         section.style.display = 'none';
         return;
     }
     section.style.display = '';
 
-    const maxCount = ranked[0].count;
+    const maxProfit = ranked[0].profit;
     const newOrder = ranked.map(r => r.id);
     const champChanged = prevRankOrder.length > 0 && prevRankOrder[0] !== newOrder[0];
 
@@ -486,36 +531,32 @@ function updateLiveRanking() {
     const existingItems = list.querySelectorAll('.rank-item');
 
     if (!orderSame || existingItems.length !== ranked.length) {
-        // Rebuild list (order changed or different count)
+        // Rebuild list
         list.innerHTML = '';
         const medals = ['🏆', '🥈', '🥉'];
 
         ranked.forEach((item, i) => {
             const rank = i + 1;
-            const pct = (item.count / maxCount) * 100;
-            const movedUp = prevRankOrder.length > 0 && prevRankOrder.indexOf(item.id) > i;
-
+            const pct = (item.profit / maxProfit) * 100;
             const el = document.createElement('div');
-            el.className = `rank-item rank-${rank <= 3 ? rank : 'other'}${movedUp ? ' rank-new' : ''}`;
-            el.dataset.productId = item.id;
+            el.className = `rank-item rank-${rank <= 3 ? rank : 'other'}`;
             el.innerHTML = `
                 <div class="rank-num">${rank <= 3 ? medals[rank - 1] : rank}</div>
                 <div class="rank-info">
                     <div class="rank-name">${item.name}</div>
                     <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div>
                 </div>
-                <span class="rank-qty">${item.count} ชิ้น</span>
+                <span class="rank-qty">฿${Math.round(item.profit).toLocaleString()}</span>
             `;
             list.appendChild(el);
         });
     } else {
-        // Same order — just update bars and counts in place (no rebuild = no bounce)
         ranked.forEach((item, i) => {
             const el = existingItems[i];
             if (!el) return;
-            const pct = (item.count / maxCount) * 100;
+            const pct = (item.profit / maxProfit) * 100;
             el.querySelector('.rank-bar-fill').style.width = `${pct}%`;
-            el.querySelector('.rank-qty').textContent = `${item.count} ชิ้น`;
+            el.querySelector('.rank-qty').textContent = `฿${Math.round(item.profit).toLocaleString()}`;
         });
     }
 
@@ -666,7 +707,89 @@ function updateChartsOnSale(tx) {
     if (chartWeekly) { const last = chartWeekly.data.datasets[0].data.length - 1; chartWeekly.data.datasets[0].data[last] += tx.quantity; chartWeekly.update('none'); }
 }
 
-// --- IMAGE HANDLING ---
+// --- INTELLIGENCE ENGINE ---
+async function updateIntelligence() {
+    const allTx = await idbOp('transactions', 'readonly', s => s.getAll());
+    const history = await idbOp('dailyRecords', 'readonly', s => s.getAll());
+
+    // 1. Efficiency Score
+    const lookback7 = history.slice(-7);
+    const lookback3 = history.slice(-3);
+    const avg7 = lookback7.length > 0 ? (lookback7.reduce((s, d) => s + d.total_revenue, 0) / lookback7.length) : 0;
+    const avg3 = lookback3.length > 0 ? (lookback3.reduce((s, d) => s + d.total_revenue, 0) / lookback3.length) : 0;
+
+    let baseline = avg7 > 0 ? avg7 : avg3;
+    let score = baseline > 0 ? (dailyState.total_revenue / baseline) * 100 : 100;
+    intelligenceData.efficiency = Math.min(Math.max(score, 0), 300);
+
+    // 2. Momentum Prediction (Minute-based)
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const elapsedMins = (now - startOfDay) / (1000 * 60);
+
+    if (elapsedMins >= 30) {
+        intelligenceData.projected = (dailyState.total_revenue / elapsedMins) * 1440;
+    } else {
+        intelligenceData.projected = 0;
+    }
+
+    // 3. Trends & Life Cycle (Deep logic)
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+    const d3Str = new Date(now.getTime() - 3 * 86400000).toISOString().split('T')[0];
+    const d7Str = new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0];
+
+    const yTx = allTx.filter(t => t.date === yStr);
+    const last3Tx = allTx.filter(t => t.date >= d3Str && t.date < todayStr);
+    const last7Tx = allTx.filter(t => t.date >= d7Str && t.date < todayStr);
+
+    products.forEach(p => {
+        const pid = p.product_id;
+        const todayC = todaySalesByProduct[pid]?.count || 0;
+        const yC = yTx.filter(t => t.product_id === pid).length;
+        const avg3 = last3Tx.filter(t => t.product_id === pid).length / 3;
+        const avg7 = last7Tx.filter(t => t.product_id === pid).length / 7;
+
+        const dod = yC > 0 ? Math.round(((todayC - yC) / yC) * 100) : (todayC > 0 ? 100 : 0);
+        const growth = avg7 > 0 ? ((todayC - avg7) / avg7) * 100 : (todayC > 0 ? 100 : 0);
+
+        let status = 'Stable';
+        if (growth > 10) status = 'Rising';
+        else if (growth < -10) status = 'Cooling';
+        if (todayC < avg3 && avg3 > 0 && todayC < avg3 * 0.5) status = 'Declining';
+
+        intelligenceData.trends[pid] = {
+            dod: Math.min(Math.max(dod, -100), 300),
+            status: status
+        };
+    });
+
+    // 4. Heatmap
+    intelligenceData.heatmap = new Array(24).fill(0);
+    todayTx.forEach(t => {
+        const hr = new Date(t.timestamp).getHours();
+        intelligenceData.heatmap[hr]++;
+    });
+
+    renderHeatmap();
+    renderProductGrid();
+}
+
+function renderHeatmap() {
+    const container = document.getElementById('heat-map-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const max = Math.max(...intelligenceData.heatmap, 1);
+    intelligenceData.heatmap.forEach((val, hr) => {
+        const cell = document.createElement('div');
+        cell.className = 'heat-cell';
+        const opacity = (val / max);
+        cell.style.background = `rgba(20, 224, 138, ${0.1 + opacity * 0.9})`;
+        cell.setAttribute('data-time', `${hr}:00`);
+        container.appendChild(cell);
+    });
+}
+
 function compressImage(file, maxW = 512, quality = 0.7) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -677,7 +800,8 @@ function compressImage(file, maxW = 512, quality = 0.7) {
                 let w = img.width, h = img.height;
                 if (w > maxW) { h = (maxW / w) * h; w = maxW; }
                 canvas.width = w; canvas.height = h;
-                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
                 resolve(canvas.toDataURL('image/jpeg', quality));
             };
             img.src = e.target.result;
